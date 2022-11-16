@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "build": "deno run --allow-env --allow-write --allow-read --allow-net --allow-run build.ts",
+    "build:contract": "cd src/ghc && cabal run contract",
+    "test": "deno test --allow-env --allow-read --allow-net tests"
+  },
+  "lint": {
+    "files": {
+      "include": ["src/"],
+      "exclude": ["src/ghc/", "src/onchain.hs"]
+    }
+  }
+}
