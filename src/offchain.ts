@@ -101,7 +101,7 @@ export class Contract {
     this.mintPolicyId = this.lucid.utils.mintingPolicyToId(this.mintPolicy);
   }
 
-  async mint(ids: number[]): Promise<TxHash> {
+  async migrate(ids: number[]): Promise<TxHash> {
     const refScripts = await this.getDeployedScripts();
 
     // Order is important since the contract relies on this.
