@@ -99,7 +99,7 @@ const contract = new Contract(lucid, {
     txHash: "<tx_hash>",
     outputIndex: 0,
   },
-  oldPolicyId: "<policy_id>",
+  oldPolicyId: "<mock_old_policy_id>",
   deployTxHash: "<tx_hash_from_deployScripts>"
 })
 
