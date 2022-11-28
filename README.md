@@ -107,7 +107,7 @@ const contract = new Contract(lucid, {
 // Migrate SpaceBud1 
 console.log(await contract.migrate([1]))
 ```
-⚠️ You can migrate multiple SpaceBudz at a time, but 3-4 is the limit. More than that exceeds the execution unit costs. Two ways to improve that:
+⚠️ You can migrate multiple SpaceBudz at a time, but 3-4 is the limit. More than that exceeds the execution unit costs. Few ways to improve that:
 - Transaction chaining
 - Rewrite the contract in a different contract language like Aiken. PlutusTx is not very efficient.
 - Make the conract more efficient in general?
