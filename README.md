@@ -8,7 +8,7 @@ The SpaceBudz wormhole contract. Moving from CIP-0025 to CIP-0068.
 
 ## Official SpaceBudz Policy
 
-Policy Id: **`N/A`**
+Policy Id: **`N/A`**\
 ⚠️ The contract is not finalized yet
 
 ## Requirements

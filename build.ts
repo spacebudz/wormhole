@@ -21,9 +21,9 @@ await build({
     type: "module",
   },
   mappings: {
-    "https://deno.land/x/lucid@0.7.6/mod.ts": {
+    "https://deno.land/x/lucid@0.7.8/mod.ts": {
       name: "lucid-cardano",
-      version: "^0.7.6",
+      version: "^0.7.8",
       peerDependency: true,
     },
   },
