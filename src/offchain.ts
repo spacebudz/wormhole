@@ -2,6 +2,7 @@ import {
   Address,
   applyParamsToScript,
   Assets,
+  C,
   concat,
   Constr,
   Data,
@@ -13,6 +14,7 @@ import {
   PlutusData,
   PolicyId,
   SpendingValidator,
+  toHex,
   toLabel,
   toUnit,
   TxHash,
@@ -216,6 +218,10 @@ export class Contract {
       txHash: this.config.deployTxHash,
       outputIndex: 0,
     }]);
+    // Temporary fix until cbor encoding is finally determined in db-sync...
+    mint.scriptRef!.script = toHex(
+      C.PlutusScript.new(fromHex(mint.scriptRef!.script)).to_bytes(),
+    );
     return { mint };
   }
 

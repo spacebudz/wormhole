@@ -87,6 +87,7 @@ const contract = new Contract(lucid, {
 console.log(await contract.deployScripts())
 ```
 
+This step only needs to be done once.
 `extraOutRef` can be ignored for now and initialized with empty arguments. This parameter is needed to mint a unique Royalty (Label 500) and Intellectual Property (Label 600) token under the same policy id.
 
 3. **Re-init contract and migrate**
@@ -149,6 +150,21 @@ hasMigrated(id: number): Promise<boolean>
 ```ts
 getDeployedScripts(): Promise<{ mint: UTxO }> 
 ```
+
+## How the wormhole works
+
+In order to migrate a SpaceBud of the old collection, three outputs need to be created:
+
+- Lock address holding the old SpaceBud
+- Reference address holding the `reference NFT` with the metadata in the datum
+- Wallet address receives the `user NFT` that represent the new SpaceBud
+
+The `reference NFT` and `user NFT` are minted during the transaction and need to follow the CIP-0068 (222) sub standard.
+To validate metadata and correctness of the minted SpaceBud a merkle tree is used that contains 10,000 entries. Each entry is a `sha2_256` hash of:
+```
+metadata hash + asset name of reference NFT + asset name of user NFT + asset name of single asset sent to Lock address
+```
+Only a small merkle tree proof needs to be brought on-chain to make sure a SpaceBud is minted correctly.
 
 ## TODO
 
