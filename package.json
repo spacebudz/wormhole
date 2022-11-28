@@ -1,8 +1,8 @@
 {
-  "name": "@spacebudz/migration",
+  "name": "@spacebudz/wormhole",
   "version": "1.0.0",
   "license": "MIT",
   "author": "Alessandro Konrad",
   "description": "",
-  "repository": "https://github.com/spacebudz/migration"
+  "repository": "https://github.com/spacebudz/wormhole"
 }

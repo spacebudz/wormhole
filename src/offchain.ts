@@ -18,7 +18,7 @@ import {
   TxHash,
   utf8ToHex,
   UTxO,
-} from "https://deno.land/x/lucid@0.7.7/mod.ts";
+} from "https://deno.land/x/lucid@0.7.8/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { Action, addressToData, ContractConfig } from "./utils.ts";

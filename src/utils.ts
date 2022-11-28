@@ -10,7 +10,7 @@ import {
   PolicyId,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.7.7/mod.ts";
+} from "https://deno.land/x/lucid@0.7.8/mod.ts";
 
 export function sortDesc(a: UTxO, b: UTxO): number {
   if (a.assets.lovelace > b.assets.lovelace) {
