@@ -2,7 +2,6 @@ import {
   Address,
   applyParamsToScript,
   Assets,
-  C,
   concat,
   Constr,
   Data,
@@ -14,13 +13,12 @@ import {
   PlutusData,
   PolicyId,
   SpendingValidator,
-  toHex,
   toLabel,
   toUnit,
   TxHash,
   utf8ToHex,
   UTxO,
-} from "https://deno.land/x/lucid@0.7.8/mod.ts";
+} from "https://deno.land/x/lucid@0.7.9/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { Action, addressToData, ContractConfig } from "./utils.ts";
@@ -217,10 +215,6 @@ export class Contract {
       txHash: this.config.deployTxHash,
       outputIndex: 0,
     }]);
-    // Temporary fix until cbor encoding is finally determined in db-sync...
-    mint.scriptRef!.script = toHex(
-      C.PlutusScript.new(fromHex(mint.scriptRef!.script)).to_bytes(),
-    );
     return { mint };
   }
 
