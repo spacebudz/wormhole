@@ -1,3 +1,6 @@
+-- REVIEW(SN): The whole module is having syntax errors and my formatter chokes
+-- on it. Also you likely would want to add {-# LANGUAGE TemplateHaskell #-} to
+-- make it parse.
 module Onchain (mintSerialized, referenceSerialized, lockSerialized) where
 
 import Cardano.Api
@@ -92,6 +95,11 @@ mintValidate c action ctx = case action of
                                   where
                                     -- | We need to make sure that mint is also empty by checking if length of mint is -1, otherwise you could mint anything you want.
                                     checkHelper [] [] [] _ userL = userL == -1
+
+                                    -- REVIEW(SN): This is assuming inline datums at the locked txOuts. AFAIU they
+                                    -- are intended to be locked indefinitely. At the same time, only the transaction
+                                    -- which mints tokens needs to access these datums, right? Maybe that means that we can just
+                                    -- use normal datums and force their inclusion in the tx. This would be way cheaper on fees.
                                     checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) ((Api.OutputDatum (Api.Datum lockOutDatum),lockOutValue) : lockOutT) refL userL = 
                                                 let 
                                                   -- | Output with reference NFT
@@ -111,10 +119,15 @@ mintValidate c action ctx = case action of
                                                   -- | Correct lock output datum
                                                   (PlutusTx.unsafeFromBuiltinData lockOutDatum :: Api.CurrencySymbol) == ownSymbol &&
                                                   -- | Check if metadata and asset names belong together and are part of the merkle tree
+                                                  -- REVIEW(SN): How big are your merkle tree proofs?
+                                                  -- I read somewhere you would have 10000 entries in the tree.
                                                   MT.member merkleEntry (merkleRoot c) merkleProof &&
                                                   -- | Loop again 
                                                   checkHelper merkleProofT refOutT lockOutT (refL - 1) (userL - 1)
                                     mint = V.flattenValue txMint
+                                    -- REVIEW(SN): Isn't it relevant that the refAddres/lockAddress correspond to the
+                                    -- referenceValidate/lockValidate validators below? How would the minting policy know
+                                    -- that these rules are enforced?
                                     refOut = scriptOutputsAtAddress (refAddress c) txInfo
                                     lockOut = scriptOutputsAtAddress (lockAddress c) txInfo
 

@@ -311,7 +311,7 @@ source-repository-package
 
 source-repository-package
   type: git
-  location: "https://github.com/input-output-hk/hydra-poc"
-  tag: b4454cd11b7a7eaab5829af379aee990eb169e38
+  location: "https://github.com/input-output-hk/hydra"
+  tag: bc2f9069de671434a3d8b87372b54be972af96a0
   subdir:
     plutus-merkle-tree
