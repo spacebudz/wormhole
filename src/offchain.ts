@@ -84,7 +84,6 @@ export class Contract {
       type: "PlutusV2",
       script: applyParamsToScript(
         scripts.mint,
-        new Constr(0, [toLabel(100), toLabel(222)]),
         new Constr(0, [
           new Constr(0, [
             new Constr(0, [this.config.extraOutRef.txHash]),

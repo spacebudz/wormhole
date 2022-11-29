@@ -41,18 +41,16 @@ instance Eq DatumMetadata where
     {-# INLINABLE (==) #-}
     DatumMetadata a b == DatumMetadata c d = a == c && b == d
 
-type Label = BuiltinByteString
-
 labelLength = 4
 
 -- | The primary minting policy for the NFT collection ------------------------------------------------------------------
 -- MintNFT: Mints a pair of user token and reference NFT according to CIP-0068.
 -- BurnNFT: Destroys this pair again. Only the holder of the NFT is allowed to proceed with that action.
 {-# INLINEABLE mintValidate #-}
-mintValidate :: (Label, Label) -> ContractDetails -> Action -> Api.ScriptContext -> Bool
-mintValidate (label100, label222) c action ctx = case action of
-  MintNFT merkleProof -> checkMintNFT merkleProof
-  BurnNFT -> checkBurnNFT
+mintValidate :: ContractDetails -> Action -> Api.ScriptContext -> Bool
+mintValidate c action ctx = case action of
+  MintNFT merkleProof -> checkedMintNFT merkleProof
+  BurnNFT -> checkedBurnNFT
   MintExtra -> checkedMintExtra
 
   where
@@ -70,8 +68,8 @@ mintValidate (label100, label222) c action ctx = case action of
                             Api.spendsOutput txInfo (Api.txOutRefId (extraOref c)) (Api.txOutRefIdx (extraOref c)) &&
                             txMint == V.singleton ownSymbol (royaltyName c) 1 <> V.singleton ownSymbol (ipName c) 1
 
-    checkBurnNFT :: Bool
-    checkBurnNFT =  let
+    checkedBurnNFT :: Bool
+    checkedBurnNFT =  let
                       -- | Allow burning only one pair (reference NFT and user token) at once
                       [(userCs, Api.TokenName userName, userAm), (refCs, Api.TokenName refName, refAm)] = V.flattenValue txMint
                     in
@@ -79,14 +77,21 @@ mintValidate (label100, label222) c action ctx = case action of
                       -1 == userAm && -1 == refAm &&
                       ownSymbol == userCs && ownSymbol == refCs &&
                       -- | Matching asset names
-                      takeByteString labelLength userName == label222 && takeByteString labelLength refName == label100 &&
                       dropByteString labelLength userName == dropByteString labelLength refName
 
-
-    checkMintNFT :: [MT.Proof] -> Bool
-    checkMintNFT merkleProofs = checkHelper merkleProofs refOut lockOut (length mint - 1) (length mint `divide` 2 - 1)
+    -- | We allow to migrate multiple SpaceBudz at a time. 
+    -- To make that efficient we make use of the ordered outputs and value maps within the script context.
+    -- e.g. flattend mint of two potential minted SpaceBudz (1,2,3) looks like: v = [(222)Bud3, (222)Bud2, (222)Bud1, (100)Bud3, (100)Bud2, (100)Bud1].
+    -- Bud1 pair: (v!!0, v!!3), Bud2 pair: (v!!1, v!!4), Bud3 pair: (v!!2, V!!5)
+    -- That's why we need to: '(length mint - 1) (length mint `divide` 2 - 1)' and decrement the number on both sides after each recursive call
+    -- Also the other outputs need to be in a certain order (the locking outputs with the old SpaceBud), as well as the merkle trees
+    -- Then we don't need to sort extra and save a lot of mem/cpu.
+    -- Can this be done even more efficiently?
+    checkedMintNFT :: [MT.Proof] -> Bool
+    checkedMintNFT merkleProofs = checkHelper merkleProofs refOut lockOut (length mint - 1) (length mint `divide` 2 - 1)
                                   where
-                                    checkHelper [] [] [] _ userL = True && userL == -1
+                                    -- | We need to make sure that mint is also empty by checking if length of mint is -1, otherwise you could mint anything you want.
+                                    checkHelper [] [] [] _ userL = userL == -1
                                     checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) ((Api.OutputDatum (Api.Datum lockOutDatum),lockOutValue) : lockOutT) refL userL = 
                                                 let 
                                                   -- | Output with reference NFT
@@ -204,7 +209,7 @@ scriptOutputsAtAddress address p =
 mintInstance :: Scripts.MintingPolicy
 mintInstance = Api.MintingPolicy $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap l c = Scripts.mkUntypedMintingPolicy $ mintValidate (PlutusTx.unsafeFromBuiltinData l) (PlutusTx.unsafeFromBuiltinData c)
+    wrap c = Scripts.mkUntypedMintingPolicy $ mintValidate (PlutusTx.unsafeFromBuiltinData c)
 
 referenceInstance :: Scripts.Validator
 referenceInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
