@@ -3,25 +3,25 @@ import {
   applyParamsToScript,
   Assets,
   concat,
-  Constr,
   Data,
   fromHex,
+  fromText,
   Json,
   Lucid,
   MerkleTree,
   MintingPolicy,
-  PlutusData,
   PolicyId,
   SpendingValidator,
+  toHex,
   toLabel,
   toUnit,
   TxHash,
-  utf8ToHex,
   UTxO,
-} from "https://deno.land/x/lucid@0.7.9/mod.ts";
+} from "https://deno.land/x/lucid@0.8.4/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
-import { Action, addressToData, ContractConfig } from "./utils.ts";
+import { ContractConfig } from "./utils.ts";
+import * as D from "./contract.types.ts";
 
 export class Contract {
   lucid: Lucid;
@@ -48,7 +48,9 @@ export class Contract {
 
     this.referenceValidator = {
       type: "PlutusV2",
-      script: scripts.reference,
+      script: applyParamsToScript<D.RefParams>(scripts.reference, [
+        toLabel(222),
+      ], D.RefParams),
     };
 
     this.referenceAddress = this.lucid.utils.validatorToAddress(
@@ -64,13 +66,16 @@ export class Contract {
 
     this.data = metadata.map((m) =>
       concat(
-        fromHex(toLabel(222) + utf8ToHex(`Bud${m.id}`)),
-        fromHex(toLabel(100) + utf8ToHex(`Bud${m.id}`)),
-        fromHex(toLabel(100) + utf8ToHex(`Bud${m.id}`)),
+        fromHex(toLabel(222) + fromText(`Bud${m.id}`)),
+        fromHex(toLabel(100) + fromText(`Bud${m.id}`)),
+        fromHex(toLabel(100) + fromText(`Bud${m.id}`)),
         new TextEncoder().encode(`SpaceBud${m.id}`),
         fromHex(
           lucid.utils.datumToHash(
-            Data.to(new Constr(0, [Data.fromJson(m), 1n])),
+            Data.to<D.DatumMetadata>({
+              metadata: Data.fromJson(m),
+              version: 1n,
+            }, D.DatumMetadata),
           ),
         ), // metadata
       )
@@ -80,20 +85,26 @@ export class Contract {
 
     this.mintPolicy = {
       type: "PlutusV2",
-      script: applyParamsToScript(
+      script: applyParamsToScript<D.DetailsParams>(
         scripts.mint,
-        new Constr(0, [
-          new Constr(0, [
-            new Constr(0, [this.config.extraOutRef.txHash]),
-            BigInt(this.config.extraOutRef.outputIndex),
-          ]),
-          toLabel(500) + utf8ToHex("Royalty"),
-          toLabel(600) + utf8ToHex("Ip"),
-          this.config.oldPolicyId,
-          new Constr(0, [this.merkleTree.rootHash()]), //??
-          addressToData(this.referenceAddress),
-          addressToData(this.lockAddress),
-        ]),
+        [
+          {
+            extraOref: {
+              txHash: { hash: this.config.extraOutRef.txHash },
+              outputIndex: BigInt(this.config.extraOutRef.outputIndex),
+            },
+            royaltyName: fromText("Royalty"),
+            ipName: fromText("Ip"),
+            oldPolicyId: this.config.oldPolicyId,
+            merkleRoot: { hash: toHex(this.merkleTree.rootHash()) },
+            refAddress:
+              this.lucid.utils.getAddressDetails(this.referenceAddress)
+                .paymentCredential!.hash,
+            lockAddress: this.lucid.utils.getAddressDetails(this.lockAddress)
+              .paymentCredential!.hash,
+          },
+        ],
+        D.DetailsParams,
       ),
     };
 
@@ -109,43 +120,48 @@ export class Contract {
     const datas = orderedIds.map((id) => this.data[id]);
     const proofs = datas.map((d) => this.merkleTree.getProof(d));
 
-    const mintRedeemer = Data.to(
-      new Constr(0, [
+    const action = Data.to<D.Action>({
+      Mint: [
         proofs.map((proof) =>
           proof.map((p) =>
             p.left
-              ? new Constr(0, [new Constr(0, [p.left])])
-              : new Constr(1, [new Constr(0, [p.right!])])
+              ? { Left: [{ hash: toHex(p.left) }] }
+              : { Right: [{ hash: toHex(p.right!) }] }
           )
         ),
-      ]),
-    );
+      ],
+    }, D.Action);
 
     const mintAssets: Assets = orderedIds.reduce((prev, id) => ({
       ...prev,
       ...{
-        [toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100)]: 1n,
-        [toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 222)]: 1n,
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: 1n,
       },
     }), {});
 
-    const tx = await this.lucid.newTx().mintAssets(mintAssets, mintRedeemer)
-      .apply((thisTx) => {
-        orderedIds.reverse().forEach((id) => {
-          thisTx.payToContract(
+    const tx = await this.lucid.newTx().mintAssets(mintAssets, action)
+      .compose((() => {
+        const tx = this.lucid.newTx();
+        orderedIds.forEach((id) => {
+          tx.payToContract(
             this.referenceAddress,
-            Data.to(new Constr(0, [Data.fromJson(metadata[id]), 1n])),
+            Data.to<D.DatumMetadata>({
+              metadata: Data.fromJson(metadata[id]),
+              version: 1n,
+            }, D.DatumMetadata),
             {
-              [toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100)]: 1n,
+              [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,
             },
           );
-          thisTx.payToContract(this.lockAddress, {
-            inline: Data.to(this.mintPolicyId),
+          tx.payToContract(this.lockAddress, {
+            inline: Data.to<PolicyId>(this.mintPolicyId, Data.String),
           }, {
-            [toUnit(this.config.oldPolicyId, utf8ToHex(`SpaceBud${id}`))]: 1n,
+            [toUnit(this.config.oldPolicyId, fromText(`SpaceBud${id}`))]: 1n,
           });
         });
-      })
+        return tx;
+      })())
       .readFrom([refScripts.mint]).complete();
 
     const txSigned = await tx.sign().complete();
@@ -155,7 +171,7 @@ export class Contract {
   async burn(id: number): Promise<TxHash> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
-      toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100),
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
     );
 
     if (!refNFTUtxo) throw new Error("NoUTxOError");
@@ -163,11 +179,11 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     const tx = await this.lucid.newTx()
-      .collectFrom([refNFTUtxo], Data.empty())
+      .collectFrom([refNFTUtxo], Data.void())
       .mintAssets({
-        [toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100)]: -1n,
-        [toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 222)]: -1n,
-      }, Action.BurnNFT)
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: -1n,
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: -1n,
+      }, Data.to<D.Action>("Burn", D.Action))
       .attachSpendingValidator(this.referenceValidator)
       .readFrom([refScripts.mint])
       .complete();
@@ -179,7 +195,7 @@ export class Contract {
   async hasMigrated(id: number): Promise<boolean> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
-      toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100),
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
     );
 
     if (!refNFTUtxo) return false;
@@ -189,23 +205,22 @@ export class Contract {
   async getMetadata(id: number): Promise<Json> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
-      toUnit(this.mintPolicyId, utf8ToHex(`Bud${id}`), 100),
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
     );
 
     if (!refNFTUtxo) return {};
 
-    const metadataDatum = Data.from(
+    const datumMetadata = Data.from<D.DatumMetadata>(
       await this.lucid.datumOf(refNFTUtxo),
-    ) as Constr<
-      PlutusData
-    >;
+      D.DatumMetadata,
+    );
 
     const metadata: {
       name: string;
       image: string;
       id: number;
     } = Data
-      .toJson(metadataDatum.fields[0]);
+      .toJson(datumMetadata.metadata);
     return metadata;
   }
 

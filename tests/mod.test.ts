@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.145.0/testing/asserts.ts";
-import { Lucid } from "https://deno.land/x/lucid@0.7.9/mod.ts";
+import { Lucid } from "https://deno.land/x/lucid@0.8.4/mod.ts";
 import {
   addressToData,
   assetsToData,

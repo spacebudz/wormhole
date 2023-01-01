@@ -6,11 +6,10 @@ import {
   getAddressDetails,
   Lucid,
   OutRef,
-  PlutusData,
   PolicyId,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.7.9/mod.ts";
+} from "https://deno.land/x/lucid@0.8.4/mod.ts";
 
 export function sortDesc(a: UTxO, b: UTxO): number {
   if (a.assets.lovelace > b.assets.lovelace) {
@@ -23,33 +22,33 @@ export function sortDesc(a: UTxO, b: UTxO): number {
 }
 
 export function dataToAddress(
-  plutusData: Constr<PlutusData>,
+  plutusData: Constr<Data>,
   lucid: Lucid,
 ): Address {
-  const paymentPart = plutusData.fields[0] as Constr<PlutusData>;
+  const paymentPart = plutusData.fields[0] as Constr<Data>;
   const paymentCredential = paymentPart.index === 0
     ? lucid.utils.keyHashToCredential(paymentPart.fields[0] as string)
     : lucid.utils.scriptHashToCredential(paymentPart.fields[0] as string);
 
   const stakePart = unwrapMaybe(
-    plutusData.fields[1] as Constr<PlutusData>,
+    plutusData.fields[1] as Constr<Data>,
   ) as
-    | Constr<PlutusData>
+    | Constr<Data>
     | null;
   const stakeCredential = stakePart
-    ? (stakePart.fields[0] as Constr<PlutusData>).index === 0
+    ? (stakePart.fields[0] as Constr<Data>).index === 0
       ? lucid.utils.keyHashToCredential(
-        (stakePart.fields[0] as Constr<PlutusData>).fields[0] as string,
+        (stakePart.fields[0] as Constr<Data>).fields[0] as string,
       )
       : lucid.utils.scriptHashToCredential(
-        (stakePart.fields[0] as Constr<PlutusData>).fields[0] as string,
+        (stakePart.fields[0] as Constr<Data>).fields[0] as string,
       )
     : undefined;
 
   return lucid.utils.credentialToAddress(paymentCredential, stakeCredential);
 }
 
-export function addressToData(address: Address): Constr<PlutusData> {
+export function addressToData(address: Address): Constr<Data> {
   const { paymentCredential, stakeCredential } = getAddressDetails(address);
   const paymentPart = paymentCredential?.type === "Key"
     ? new Constr(0, [paymentCredential!.hash])
@@ -104,12 +103,12 @@ export function assetsToData(assets: Assets): Map<string, Map<string, bigint>> {
   return valueMap;
 }
 
-export function wrapMaybe(data?: PlutusData | null): PlutusData {
+export function wrapMaybe(data?: Data | null): Data {
   if (data) return new Constr(0, [data!]);
   return new Constr(1, []);
 }
 
-export function unwrapMaybe(data: Constr<PlutusData>): PlutusData | null {
+export function unwrapMaybe(data: Constr<Data>): Data | null {
   if (data.index === 0) return data.fields[0];
   return null;
 }

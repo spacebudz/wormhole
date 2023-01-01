@@ -29,8 +29,8 @@ data ContractDetails = ContractDetails {
                      , ipName             :: Api.TokenName
                      , oldCs              :: Api.CurrencySymbol
                      , merkleRoot         :: MT.Hash
-                     , refAddress         :: Api.Address
-                     , lockAddress        :: Api.Address
+                     , refAddress         :: Api.ValidatorHash
+                     , lockAddress        :: Api.ValidatorHash
                      }
 
 data Action = MintNFT [MT.Proof] | BurnNFT | MintExtra
@@ -81,25 +81,16 @@ mintValidate c action ctx = case action of
 
     -- | We allow to migrate multiple SpaceBudz at a time. 
     -- To make that efficient we make use of the ordered outputs and value maps within the script context.
-    -- e.g. flattend mint of two potential minted SpaceBudz (1,2,3) looks like: v = [(222)Bud3, (222)Bud2, (222)Bud1, (100)Bud3, (100)Bud2, (100)Bud1].
-    -- Bud1 pair: (v!!0, v!!3), Bud2 pair: (v!!1, v!!4), Bud3 pair: (v!!2, V!!5)
-    -- That's why we need to: '(length mint - 1) (length mint `divide` 2 - 1)' and decrement the number on both sides after each recursive call
-    -- Also the other outputs need to be in a certain order (the locking outputs with the old SpaceBud), as well as the merkle trees
-    -- Then we don't need to sort extra and save a lot of mem/cpu.
-    -- Can this be done even more efficiently?
     checkedMintNFT :: [MT.Proof] -> Bool
-    checkedMintNFT merkleProofs = checkHelper merkleProofs refOut lockOut (length mint - 1) (length mint `divide` 2 - 1)
+    checkedMintNFT merkleProofs = checkHelper merkleProofs refOut lockOut mint
                                   where
-                                    -- | We need to make sure that mint is also empty by checking if length of mint is -1, otherwise you could mint anything you want.
-                                    checkHelper [] [] [] _ userL = userL == -1
-                                    checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) ((Api.OutputDatum (Api.Datum lockOutDatum),lockOutValue) : lockOutT) refL userL = 
+                                    checkHelper [] [] [] [] = True
+                                    checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) ((Api.OutputDatum (Api.Datum lockOutDatum),lockOutValue) : lockOutT) ((userCs, Api.TokenName userName, userAm) : (refCs, Api.TokenName refName, refAm) : mintT) = 
                                                 let 
                                                   -- | Output with reference NFT
                                                   [(refOutCs,Api.TokenName refOutName,refOutAm)] = V.flattenValue (V.noAdaValue refOutValue)
                                                   -- | Output with locked old SpaceBud
                                                   [(lockOutCs,Api.TokenName lockOutName,lockOutAm)] = V.flattenValue (V.noAdaValue lockOutValue)
-                                                  -- | Mint value (reference NFT and user token) 
-                                                  [(refCs, Api.TokenName refName, refAm), (userCs, Api.TokenName userName, userAm)] = [mint!!refL, mint!!userL]
                                                   -- | Create data for merkle tree (combination of asset names and datum hash from ref output)
                                                   merkleEntry = userName <> refName <> refOutName <> lockOutName <> refOutDatumHash
                                                 in 
@@ -112,17 +103,17 @@ mintValidate c action ctx = case action of
                                                   (PlutusTx.unsafeFromBuiltinData lockOutDatum :: Api.CurrencySymbol) == ownSymbol &&
                                                   -- | Check if metadata and asset names belong together and are part of the merkle tree
                                                   MT.member merkleEntry (merkleRoot c) merkleProof &&
-                                                  -- | Loop again 
-                                                  checkHelper merkleProofT refOutT lockOutT (refL - 1) (userL - 1)
-                                    mint = V.flattenValue txMint
-                                    refOut = scriptOutputsAtAddress (refAddress c) txInfo
-                                    lockOut = scriptOutputsAtAddress (lockAddress c) txInfo
+                                                  -- | Check next 
+                                                  checkHelper merkleProofT refOutT lockOutT mintT
+                                    mint = sortBy (\(_, Api.TokenName a, _) (_,Api.TokenName b, _) -> dropByteString labelLength a `compare` dropByteString labelLength b) (V.flattenValue txMint)
+                                    refOut = scriptOutputsAt (refAddress c) txInfo
+                                    lockOut = scriptOutputsAt (lockAddress c) txInfo
 
 
 -- | The validator that holds the reference NFTs including the metadata.
 {-# INLINEABLE referenceValidate #-}
-referenceValidate :: DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
-referenceValidate datumMetadata action ctx = case action of
+referenceValidate :: BuiltinByteString -> DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
+referenceValidate label222 datumMetadata action ctx = case action of
   Burn -> checkedBurn
   Move -> checkedMove
   where
@@ -144,6 +135,9 @@ referenceValidate datumMetadata action ctx = case action of
         Just (Api.Datum d) -> case PlutusTx.fromBuiltinData d of
           Just m -> (m, txOutValue o)
 
+    providesUserToken :: Api.CurrencySymbol -> Api.TokenName -> Integer -> Bool
+    providesUserToken cs tn am = any (\(Api.TxInInfo _ out) -> valueOf (txOutValue out) cs tn == am) (txInfoInputs txInfo)
+
     checkedBurn :: Bool
     checkedBurn = let
                     -- Allow burning only one pair (reference NFT and user token) at once
@@ -158,10 +152,15 @@ referenceValidate datumMetadata action ctx = case action of
                     ownName == refName
 
     checkedMove :: Bool
-    checkedMove = -- Value matches
-                  V.noAdaValue ownValue == V.noAdaValue ownOutputValue && 
-                  -- Metadata stays immutable
-                  datumMetadata == ownOutputDatumMetadata
+    checkedMove = let
+                    [(ownCs, Api.TokenName ownName, _)] = V.flattenValue (V.noAdaValue ownValue)
+                  in
+                    -- Value matches
+                    V.noAdaValue ownValue == V.noAdaValue ownOutputValue && 
+                    -- Metadata stays immutable
+                    datumMetadata == ownOutputDatumMetadata &&
+                    -- Moved by owner
+                    providesUserToken ownCs (Api.TokenName (label222 <> dropByteString labelLength ownName)) 1
 
 
 -- | The validator that locks up the old SpaceBudz.
@@ -214,7 +213,7 @@ mintInstance = Api.MintingPolicy $ Api.fromCompiledCode ($$(PlutusTx.compile [||
 referenceInstance :: Scripts.Validator
 referenceInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap = Scripts.mkUntypedValidator $ referenceValidate
+    wrap l = Scripts.mkUntypedValidator $ referenceValidate (PlutusTx.unsafeFromBuiltinData l)
 
 lockInstance :: Scripts.Validator
 lockInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
