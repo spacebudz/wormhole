@@ -122,7 +122,7 @@ referenceValidate label222 datumMetadata action ctx = case action of
     txMint = Api.txInfoMint txInfo
 
     ownValue :: V.Value
-    ownValue =  let Just i = Api.findOwnInput ctx
+    ownValue =  let i = findOwnUniqueInput ctx
                     out = txInInfoResolved i
                 in txOutValue out
 
@@ -177,7 +177,7 @@ lockValidate oldCs newCs () ctx = checkedUnlock
     ownDatum :: Api.OutputDatum
     ownValidatorHash :: Api.ValidatorHash
     (ownValue, ownDatum, ownValidatorHash) =  
-                let Just i = Api.findOwnInput ctx
+                let i = findOwnUniqueInput ctx
                     out = txInInfoResolved i
                     Api.Address (Api.ScriptCredential validatorHash) _ = txOutAddress out 
                 in (txOutValue out, txOutDatum out, validatorHash)
@@ -198,11 +198,10 @@ lockValidate oldCs newCs () ctx = checkedUnlock
                       newCs == userCs && newCs == refCs &&
                       -- | Matching asset names
                       noLabelUserName == dropByteString labelLength refName &&
-                      -- | If there is only lovelace left then you can destroy the script utxo entirely.
+                      -- | If there is only lovelace left then you the script utxo can be destroyed.
                       -- However if there are still assets left then they need to be locked again with the correct datum!
                       if V.isZero remainingLockedValue then True 
                       else ownDatum == lockOutDatum && remainingLockedValue == V.noAdaValue lockOutValue
-                      -- dropByteString labelLength userName == dropByteString 5 oldName
 
 -- | Instantiate validators ------------------------------------------------------------------
 
@@ -220,6 +219,29 @@ lockInstance :: Scripts.Validator
 lockInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
     wrap c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData c)
+
+-- | Utils ------------------------------------------------------------------
+
+{-# INLINABLE findOwnUniqueInput #-}
+-- | Find the input currently being validated and make sure there is just one script in the transaction!
+findOwnUniqueInput :: ScriptContext -> TxInInfo
+findOwnUniqueInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}, scriptContextPurpose=Spending txOutRef} =
+    case filter (\TxInInfo{txInInfoResolved} -> case txOutAddress txInInfoResolved of
+                                          (Api.Address (Api.ScriptCredential _) _) -> True
+                                          _ -> False) txInfoInputs
+    of
+      -- | The easy case: Either a lock utxo or a ref utxo
+      [i] -> i
+      -- | We need to make sure i1 and i2 are no the same validator to solve the double satisfaction problem. 
+      -- In most cases it's not a problem, but for the two twin SpaceBudz it is (which have a quantity of 2)!
+      -- There should never be a combination of (lock utxo, lock utxo) or (ref utxo, ref utxo). Only (lock utxo, ref utxo) is valid.
+      [i1, i2] -> let
+                    Api.Address (Api.ScriptCredential v1) _ = txOutAddress (txInInfoResolved i1)
+                    Api.Address (Api.ScriptCredential v2) _ = txOutAddress (txInInfoResolved i2)
+                    i = if txInInfoOutRef i1 == txOutRef then i1 else i2
+                  in 
+                    case v1 /= v2 of
+                      True -> i
 
 -- | Serialization ------------------------------------------------------------------
 

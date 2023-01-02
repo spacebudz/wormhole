@@ -15,6 +15,7 @@ import {
   toHex,
   toLabel,
   toUnit,
+  Tx,
   TxHash,
   UTxO,
 } from "https://deno.land/x/lucid@0.8.4/mod.ts";
@@ -177,7 +178,7 @@ export class Contract {
     return txSigned.submit();
   }
 
-  async burn(id: number): Promise<TxHash> {
+  async _burn(id: number): Promise<Tx> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
       toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
@@ -187,17 +188,21 @@ export class Contract {
 
     const refScripts = await this.getDeployedScripts();
 
-    const tx = await this.lucid.newTx()
+    return this.lucid.newTx()
       .collectFrom([refNFTUtxo], Data.void())
       .mintAssets({
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: -1n,
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: -1n,
       }, Data.to<D.Action>("Burn", D.Action))
       .attachSpendingValidator(this.referenceValidator)
-      .readFrom([refScripts.mint])
-      .complete();
+      .readFrom([refScripts.mint]);
+  }
+
+  async burn(id: number): Promise<TxHash> {
+    const tx = await (await this._burn(id)).complete();
 
     const signedTx = await tx.sign().complete();
+
     return signedTx.submit();
   }
 
@@ -219,20 +224,19 @@ export class Contract {
 
     const datum = await this.lucid.datumOf(refNFTUtxo);
 
-    delete refNFTUtxo.assets.lovelace;
-
     const tx = await this.lucid.newTx()
       .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Move", D.RefAction))
       .collectFrom([ownershipUtxo])
       .payToContract(
         refNFTUtxo.address,
         datum,
-        refNFTUtxo.assets,
+        { ...refNFTUtxo.assets, lovelace: 0n },
       )
       .attachSpendingValidator(this.referenceValidator)
       .complete();
 
     const signedTx = await tx.sign().complete();
+
     return signedTx.submit();
   }
 
