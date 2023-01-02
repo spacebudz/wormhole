@@ -89,7 +89,8 @@ mintValidate c action ctx = case action of
                                                   -- | Create data for merkle tree (combination of asset names and datum hash from ref output)
                                                   merkleEntry = userName <> refName <> refOutName <> lockOutName <> refOutDatumHash
                                                 in 
-                                                  -- | Forcing to append datum with metadata to witness set (this will expose the metadata and not only the hash).
+                                                  -- | Forcing to append datum with metadata to witness set 
+                                                  -- (this will expose the metadata and not only the hash).
                                                   isJust (Api.findDatum (Api.DatumHash refOutDatumHash) txInfo) &&
                                                   -- | Matching policy id, quantities
                                                   1 == refOutAm && 1 == userAm && 1 == refAm && 1 == lockOutAm &&
@@ -98,7 +99,7 @@ mintValidate c action ctx = case action of
                                                   MT.member merkleEntry (merkleRoot c) merkleProof &&
                                                   -- | Check next 
                                                   checkHelper merkleProofT refOutT lockOutFlatValueT mintT
-                                    -- | Sort min in DESC order by asset name without CIP-0067 prefix
+                                    -- | Sort mint in DESC order by asset name without CIP-0067 prefix
                                     mint = sortBy (\(_, Api.TokenName a, _) (_,Api.TokenName b, _) -> dropByteString labelLength b `compare` dropByteString labelLength a) (V.flattenValue txMint)
                                     refOut = scriptOutputsAt (refAddress c) txInfo
                                     -- | Output with locked old SpaceBudz

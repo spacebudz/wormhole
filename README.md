@@ -22,7 +22,7 @@ Policy Id: **`N/A`**\
 Old SpaceBudz follow CIP-0025 and have the following asset name structure: `SpaceBud{id}` (e.g. `SpaceBud123`). But we leave out the metadata since they are not relevant for testing the contract.
 
 ```ts
-import { Lucid, Blockfrost, MintingPolicy } from "https://deno.land/x/lucid@0.7.9/mod.ts";
+import { Lucid, Blockfrost, MintingPolicy } from "https://deno.land/x/lucid@0.8.4/mod.ts";
 
 const lucid = await Lucid.new(new Blockfrost(...), "Preview");
 
@@ -66,7 +66,7 @@ console.log(await mockMint());
 2. **Init contract and deploy scripts**
 
 ```ts
-import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.7.9/mod.ts";
+import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.8.4/mod.ts";
 import { Contract } from "./src/offchain.ts";
 
 const lucid = await Lucid.new(new Blockfrost(...), "Preview");
@@ -107,10 +107,9 @@ const contract = new Contract(lucid, {
 // Migrate SpaceBud1 
 console.log(await contract.migrate([1]))
 ```
-⚠️ You can migrate multiple SpaceBudz at a time, but 3-4 is the limit. More than that exceeds the execution unit costs. Few ways to improve that:
+⚠️ You can migrate multiple SpaceBudz at a time, 6-7 is the limit. More than that exceeds the execution unit costs. Few ways to improve that:
 - Transaction chaining
 - Rewrite the contract in a different contract language like Aiken. PlutusTx is not very efficient.
-- Make the conract more efficient in general?
 
 4. **Burn (just for fun and testing)**
 ```ts
@@ -128,7 +127,7 @@ See [requirements](./src/ghc/README.md).
 deno task build
 ```
 Outputs a `dist` folder.
-Lucid needs to be imported separately and is a peer dependency (version `@0.7.9`).
+Lucid needs to be imported separately and is a peer dependency (version `@0.8.4`).
 
 ## Contract endpoints
 
@@ -140,6 +139,9 @@ deployScripts(): Promise<TxHash>
 ```
 ```ts
 burn(id: number): Promise<TxHash> 
+```
+```ts
+move(id: number): Promise<TxHash> 
 ```
 ```ts
 getMetadata(id: number): Promise<Json>
