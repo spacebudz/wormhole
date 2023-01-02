@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="100%" src="./src/images/wormhole.png" align="center"/>
+  <img width="100%" src="./assets/wormhole.png" align="center"/>
 </p>
 
 # Wormhole
