@@ -59,7 +59,9 @@ export class Contract {
 
     this.lockValidator = {
       type: "PlutusV2",
-      script: scripts.lock,
+      script: applyParamsToScript<D.LockParams>(scripts.lock, [
+        this.config.oldPolicyId,
+      ], D.LockParams),
     };
 
     this.lockAddress = this.lucid.utils.validatorToAddress(this.lockValidator);
@@ -115,7 +117,7 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     // Order is important since the contract relies on this.
-    const orderedIds = ids.toSorted();
+    const orderedIds = ids.toSorted().reverse();
 
     const datas = orderedIds.map((id) => this.data[id]);
     const proofs = datas.map((d) => this.merkleTree.getProof(d));
@@ -140,7 +142,15 @@ export class Contract {
       },
     }), {});
 
-    const tx = await this.lucid.newTx().mintAssets(mintAssets, action)
+    const lockAssets: Assets = orderedIds.reduce((prev, id) => ({
+      ...prev,
+      ...{
+        [toUnit(this.config.oldPolicyId, fromText(`SpaceBud${id}`))]: 1n,
+      },
+    }), {});
+
+    const tx = await this.lucid.newTx()
+      .mintAssets(mintAssets, action)
       .compose((() => {
         const tx = this.lucid.newTx();
         orderedIds.forEach((id) => {
@@ -154,17 +164,16 @@ export class Contract {
               [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,
             },
           );
-          tx.payToContract(this.lockAddress, {
-            inline: Data.to<PolicyId>(this.mintPolicyId, Data.String),
-          }, {
-            [toUnit(this.config.oldPolicyId, fromText(`SpaceBud${id}`))]: 1n,
-          });
         });
         return tx;
       })())
+      .payToContract(this.lockAddress, {
+        inline: Data.to<PolicyId>(this.mintPolicyId, Data.String),
+      }, lockAssets)
       .readFrom([refScripts.mint]).complete();
 
     const txSigned = await tx.sign().complete();
+
     return txSigned.submit();
   }
 
@@ -186,6 +195,41 @@ export class Contract {
       }, Data.to<D.Action>("Burn", D.Action))
       .attachSpendingValidator(this.referenceValidator)
       .readFrom([refScripts.mint])
+      .complete();
+
+    const signedTx = await tx.sign().complete();
+    return signedTx.submit();
+  }
+
+  /** This endpoint doesn't do more than moving the ref NFT to eventually extract min ADA (e.g. protocol parameters changed). */
+  async move(id: number): Promise<TxHash> {
+    const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
+      this.referenceAddress,
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
+    );
+
+    const ownershipUtxo = await this.lucid.wallet.getUtxos().then((utxos) =>
+      utxos.find((utxo) =>
+        utxo.assets[toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]
+      )
+    );
+
+    if (!ownershipUtxo) throw new Error("NoOwnershipError");
+    if (!refNFTUtxo) throw new Error("NoUTxOError");
+
+    const datum = await this.lucid.datumOf(refNFTUtxo);
+
+    delete refNFTUtxo.assets.lovelace;
+
+    const tx = await this.lucid.newTx()
+      .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Move", D.RefAction))
+      .collectFrom([ownershipUtxo])
+      .payToContract(
+        refNFTUtxo.address,
+        datum,
+        refNFTUtxo.assets,
+      )
+      .attachSpendingValidator(this.referenceValidator)
       .complete();
 
     const signedTx = await tx.sign().complete();

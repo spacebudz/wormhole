@@ -25,12 +25,8 @@ pub fn mint(
   ctx: ScriptContext,
 ) -> Bool {
   when action is {
-    Mint(proofs) ->
-      when proofs is {
-        [proof, ..rest] ->
-          merkletree.has(#[1, 2, 3], contract_details.merkle_root, proof)
-        _ -> False
-      }
+    Mint([proof, ..rest]) ->
+      merkletree.has(#[1, 2, 3], contract_details.merkle_root, proof)
     Burn -> False
     MintExtra -> False
   }

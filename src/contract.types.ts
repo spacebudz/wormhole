@@ -29,6 +29,9 @@ export type DetailsParams = Data.Static<typeof DetailsParams>;
 export const RefParams = Data.Tuple([Data.String]);
 export type RefParams = Data.Static<typeof RefParams>;
 
+export const LockParams = Data.Tuple([Data.String]);
+export type LockParams = Data.Static<typeof LockParams>;
+
 export const Proof = Data.Array(Data.Enum([
   Data.Object({ Left: Data.Tuple([Hash]) }),
   Data.Object({ Right: Data.Tuple([Hash]) }),
@@ -46,3 +49,4 @@ export const RefAction = Data.Enum([
   Data.Literal("Burn"),
   Data.Literal("Move"),
 ]);
+export type RefAction = Data.Static<typeof RefAction>;

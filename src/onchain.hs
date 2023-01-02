@@ -46,6 +46,7 @@ labelLength = 4
 -- | The primary minting policy for the NFT collection ------------------------------------------------------------------
 -- MintNFT: Mints a pair of user token and reference NFT according to CIP-0068.
 -- BurnNFT: Destroys this pair again. Only the holder of the NFT is allowed to proceed with that action.
+-- MintExtra: Mints royalty and IP NFT
 {-# INLINEABLE mintValidate #-}
 mintValidate :: ContractDetails -> Action -> Api.ScriptContext -> Bool
 mintValidate c action ctx = case action of
@@ -69,28 +70,22 @@ mintValidate c action ctx = case action of
                             txMint == V.singleton ownSymbol (royaltyName c) 1 <> V.singleton ownSymbol (ipName c) 1
 
     checkedBurnNFT :: Bool
-    checkedBurnNFT =  let
-                      -- | Allow burning only one pair (reference NFT and user token) at once
-                      [(userCs, Api.TokenName userName, userAm), (refCs, Api.TokenName refName, refAm)] = V.flattenValue txMint
-                    in
-                       -- | Matching policy id, quantities
-                      -1 == userAm && -1 == refAm &&
-                      ownSymbol == userCs && ownSymbol == refCs &&
-                      -- | Matching asset names
-                      dropByteString labelLength userName == dropByteString labelLength refName
+    checkedBurnNFT = all (\(cs,_,am) -> if cs == ownSymbol then am == -1 else True) (V.flattenValue txMint)
 
     -- | We allow to migrate multiple SpaceBudz at a time. 
     -- To make that efficient we make use of the ordered outputs and value maps within the script context.
     checkedMintNFT :: [MT.Proof] -> Bool
-    checkedMintNFT merkleProofs = checkHelper merkleProofs refOut lockOut mint
+    checkedMintNFT merkleProofs = checkHelper merkleProofs refOut lockOutFlatValue mint &&
+                                  -- | Correct lock output datum
+                                  (PlutusTx.unsafeFromBuiltinData lockOutDatum :: Api.CurrencySymbol) == ownSymbol
                                   where
                                     checkHelper [] [] [] [] = True
-                                    checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) ((Api.OutputDatum (Api.Datum lockOutDatum),lockOutValue) : lockOutT) ((userCs, Api.TokenName userName, userAm) : (refCs, Api.TokenName refName, refAm) : mintT) = 
+                                    checkHelper (merkleProof : merkleProofT) ((Api.OutputDatumHash (Api.DatumHash refOutDatumHash),refOutValue) : refOutT) 
+                                                ((lockOutCs,Api.TokenName lockOutName, lockOutAm) : lockOutFlatValueT) 
+                                                ((userCs, Api.TokenName userName, userAm) : (refCs, Api.TokenName refName, refAm) : mintT) = 
                                                 let 
                                                   -- | Output with reference NFT
                                                   [(refOutCs,Api.TokenName refOutName,refOutAm)] = V.flattenValue (V.noAdaValue refOutValue)
-                                                  -- | Output with locked old SpaceBud
-                                                  [(lockOutCs,Api.TokenName lockOutName,lockOutAm)] = V.flattenValue (V.noAdaValue lockOutValue)
                                                   -- | Create data for merkle tree (combination of asset names and datum hash from ref output)
                                                   merkleEntry = userName <> refName <> refOutName <> lockOutName <> refOutDatumHash
                                                 in 
@@ -99,15 +94,17 @@ mintValidate c action ctx = case action of
                                                   -- | Matching policy id, quantities
                                                   1 == refOutAm && 1 == userAm && 1 == refAm && 1 == lockOutAm &&
                                                   ownSymbol == refOutCs && ownSymbol == userCs && ownSymbol == refCs && oldCs c == lockOutCs &&
-                                                  -- | Correct lock output datum
-                                                  (PlutusTx.unsafeFromBuiltinData lockOutDatum :: Api.CurrencySymbol) == ownSymbol &&
                                                   -- | Check if metadata and asset names belong together and are part of the merkle tree
                                                   MT.member merkleEntry (merkleRoot c) merkleProof &&
                                                   -- | Check next 
-                                                  checkHelper merkleProofT refOutT lockOutT mintT
-                                    mint = sortBy (\(_, Api.TokenName a, _) (_,Api.TokenName b, _) -> dropByteString labelLength a `compare` dropByteString labelLength b) (V.flattenValue txMint)
+                                                  checkHelper merkleProofT refOutT lockOutFlatValueT mintT
+                                    -- | Sort min in DESC order by asset name without CIP-0067 prefix
+                                    mint = sortBy (\(_, Api.TokenName a, _) (_,Api.TokenName b, _) -> dropByteString labelLength b `compare` dropByteString labelLength a) (V.flattenValue txMint)
                                     refOut = scriptOutputsAt (refAddress c) txInfo
-                                    lockOut = scriptOutputsAt (lockAddress c) txInfo
+                                    -- | Output with locked old SpaceBudz
+                                    [(Api.OutputDatum (Api.Datum lockOutDatum), lockOutValue)] = scriptOutputsAt (lockAddress c) txInfo
+                                    -- | This is also in DESC order
+                                    lockOutFlatValue = V.flattenValue (V.noAdaValue lockOutValue)
 
 
 -- | The validator that holds the reference NFTs including the metadata.
@@ -153,20 +150,21 @@ referenceValidate label222 datumMetadata action ctx = case action of
 
     checkedMove :: Bool
     checkedMove = let
-                    [(ownCs, Api.TokenName ownName, _)] = V.flattenValue (V.noAdaValue ownValue)
+                    noAdaOwnValue = V.noAdaValue ownValue
+                    [(ownCs, Api.TokenName ownName, _)] = V.flattenValue noAdaOwnValue
                   in
                     -- Value matches
-                    V.noAdaValue ownValue == V.noAdaValue ownOutputValue && 
+                    noAdaOwnValue == V.noAdaValue ownOutputValue && 
                     -- Metadata stays immutable
                     datumMetadata == ownOutputDatumMetadata &&
-                    -- Moved by owner
+                    -- Moved by owner only
                     providesUserToken ownCs (Api.TokenName (label222 <> dropByteString labelLength ownName)) 1
 
 
 -- | The validator that locks up the old SpaceBudz.
 {-# INLINEABLE lockValidate #-}
-lockValidate :: Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
-lockValidate newCs () ctx = checkedUnlock
+lockValidate :: Api.CurrencySymbol -> Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
+lockValidate oldCs newCs () ctx = checkedUnlock
   where
     txInfo :: Api.TxInfo
     txInfo = Api.scriptContextTxInfo ctx
@@ -175,33 +173,35 @@ lockValidate newCs () ctx = checkedUnlock
     txMint = Api.txInfoMint txInfo
 
     ownValue :: V.Value
-    ownValue =  let Just i = Api.findOwnInput ctx
+    ownDatum :: Api.OutputDatum
+    ownValidatorHash :: Api.ValidatorHash
+    (ownValue, ownDatum, ownValidatorHash) =  
+                let Just i = Api.findOwnInput ctx
                     out = txInInfoResolved i
-                 in txOutValue out
+                    Api.Address (Api.ScriptCredential validatorHash) _ = txOutAddress out 
+                in (txOutValue out, txOutDatum out, validatorHash)
 
     checkedUnlock :: Bool
     checkedUnlock = let
-                      -- | Allow burning only one pair (reference NFT and user token) at once
+                      noAdaOwnValue = V.noAdaValue ownValue
+                      -- | Allow burning only one pair (reference NFT and user token) at once.
                       [(userCs, Api.TokenName userName, userAm), (refCs, Api.TokenName refName, refAm)] = V.flattenValue txMint
-                      -- | Own input with correct asset
-                      [(_, Api.TokenName oldName, oldAm)] = V.flattenValue (V.noAdaValue ownValue)
+                      noLabelUserName = dropByteString labelLength userName -- "e.g. Bud123"
+                      -- | Remove the asset from the total value that is allowed to be unlocked.
+                      remainingLockedValue = noAdaOwnValue - V.singleton oldCs (Api.TokenName ("Space" <> noLabelUserName)) 1
+                      -- | If there is remaining value locked then we need to check if there exists a new script output with this value.
+                      [(lockOutDatum, lockOutValue)] = scriptOutputsAt ownValidatorHash txInfo
                     in
                       -- | Matching policy id, quantities
-                      -1 == userAm && -1 == refAm && 1 == oldAm &&
+                      -1 == userAm && -1 == refAm &&
                       newCs == userCs && newCs == refCs &&
                       -- | Matching asset names
-                      dropByteString labelLength userName == dropByteString labelLength refName &&
-                      -- | Check if user name matches with the old SpaceBud name (e.g. Bud123 == Bud123)
-                      dropByteString labelLength userName == dropByteString 5 oldName
-
--- | Utils ------------------------------------------------------------------
-
-{-# INLINEABLE scriptOutputsAtAddress #-}
-scriptOutputsAtAddress :: Api.Address -> Api.TxInfo -> [(Api.OutputDatum, V.Value)]
-scriptOutputsAtAddress address p =
-    let flt Api.TxOut{Api.txOutDatum=d, txOutAddress=address', txOutValue} | address == address' = Just (d, txOutValue)
-        flt _ = Nothing
-    in mapMaybe flt (Api.txInfoOutputs p)
+                      noLabelUserName == dropByteString labelLength refName &&
+                      -- | If there is only lovelace left then you can destroy the script utxo entirely.
+                      -- However if there are still assets left then they need to be locked again with the correct datum!
+                      if V.isZero remainingLockedValue then True 
+                      else ownDatum == lockOutDatum && remainingLockedValue == V.noAdaValue lockOutValue
+                      -- dropByteString labelLength userName == dropByteString 5 oldName
 
 -- | Instantiate validators ------------------------------------------------------------------
 
@@ -218,7 +218,7 @@ referenceInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|
 lockInstance :: Scripts.Validator
 lockInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap = Scripts.mkUntypedValidator $ lockValidate
+    wrap c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData c)
 
 -- | Serialization ------------------------------------------------------------------
 
