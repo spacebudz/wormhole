@@ -101,11 +101,12 @@ export class Contract {
             ipName: toLabel(600) + fromText("Ip"),
             oldPolicyId: this.config.oldPolicyId,
             merkleRoot: { hash: toHex(this.merkleTree.rootHash()) },
-            refAddress:
-              this.lucid.utils.getAddressDetails(this.referenceAddress)
-                .paymentCredential!.hash,
-            lockAddress: this.lucid.utils.getAddressDetails(this.lockAddress)
-              .paymentCredential!.hash,
+            refAddress: this.lucid.utils.validatorToScriptHash(
+              this.referenceValidator,
+            ),
+            lockAddress: this.lucid.utils.validatorToScriptHash(
+              this.lockValidator,
+            ),
           },
         ],
         D.DetailsParams,
