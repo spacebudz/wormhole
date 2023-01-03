@@ -96,8 +96,8 @@ export class Contract {
               txHash: { hash: this.config.extraOutRef.txHash },
               outputIndex: BigInt(this.config.extraOutRef.outputIndex),
             },
-            royaltyName: fromText("Royalty"),
-            ipName: fromText("Ip"),
+            royaltyName: toLabel(500) + fromText("Royalty"),
+            ipName: toLabel(600) + fromText("Ip"),
             oldPolicyId: this.config.oldPolicyId,
             merkleRoot: { hash: toHex(this.merkleTree.rootHash()) },
             refAddress:

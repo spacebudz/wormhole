@@ -50,7 +50,7 @@ labelLength = 4
 {-# INLINEABLE mintValidate #-}
 mintValidate :: ContractDetails -> Action -> Api.ScriptContext -> Bool
 mintValidate c action ctx = case action of
-  MintNFT merkleProof -> checkedMintNFT merkleProof
+  MintNFT merkleProofs -> checkedMintNFT merkleProofs
   BurnNFT -> checkedBurnNFT
   MintExtra -> checkedMintExtra
 
