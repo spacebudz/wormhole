@@ -1,4 +1,4 @@
-import { ContractConfig } from "./utils.ts";
+import { ContractConfig } from "./types.ts";
 
 export const budConfig: ContractConfig = {
   extraOutRef: {

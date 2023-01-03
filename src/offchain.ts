@@ -21,8 +21,9 @@ import {
 } from "https://deno.land/x/lucid@0.8.4/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
-import { ContractConfig } from "./utils.ts";
-import * as D from "./contract.types.ts";
+import { budConfig } from "./config.ts";
+import { ContractConfig } from "./types.ts";
+import * as D from "./types.ts";
 
 export class Contract {
   lucid: Lucid;
@@ -42,7 +43,7 @@ export class Contract {
    */
   constructor(
     lucid: Lucid,
-    config: ContractConfig,
+    config: ContractConfig = budConfig,
   ) {
     this.lucid = lucid;
     this.config = config;

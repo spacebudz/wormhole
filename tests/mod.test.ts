@@ -1,35 +1,81 @@
-import { assertEquals } from "https://deno.land/std@0.145.0/testing/asserts.ts";
-import { Lucid } from "https://deno.land/x/lucid@0.8.4/mod.ts";
 import {
-  addressToData,
-  assetsToData,
-  dataToAddress,
-  dataToAssets,
-} from "../src/utils.ts";
+  Assets,
+  Emulator,
+  fromText,
+  generateSeedPhrase,
+  Lucid,
+} from "https://deno.land/x/lucid@0.8.4/mod.ts";
+import { Contract } from "../mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.145.0/testing/asserts.ts";
 
-const lucid = await Lucid.new(undefined, "Preview");
+async function generateAccount(assets: Assets) {
+  const seedPhrase = generateSeedPhrase();
+  return {
+    seedPhrase,
+    address: await (await Lucid.new(undefined, "Custom"))
+      .selectWalletFromSeed(seedPhrase).wallet.address(),
+    assets,
+  };
+}
 
-Deno.test("Address <> PlutusData", () => {
-  const address =
-    "addr_test1qq90qrxyw5qtkex0l7mc86xy9a6xkn5t3fcwm6wq33c38t8nhh356yzp7k3qwmhe4fk0g5u6kx5ka4rz5qcq4j7mvh2sts2cfa";
-  const address2 =
-    "addr_test1wqm0gyuht0ng20u3c7f6gcylt5dk0kvlhmcvgp87xx8wxmqy3h350";
+const oldPolicyId = "11".repeat(28);
 
-  assertEquals(
-    address,
-    dataToAddress(addressToData(address), lucid),
-  );
-  assertEquals(
-    address2,
-    dataToAddress(addressToData(address2), lucid),
-  );
+const ACCOUNT_0 = await generateAccount({
+  lovelace: 30000000000n,
+  [oldPolicyId + fromText(`SpaceBud${0}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${1}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${13}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${444}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${600}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${702}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${9999}`)]: 1n,
+});
+const ACCOUNT_1 = await generateAccount({ lovelace: 75000000000n });
+
+const emulator = new Emulator([ACCOUNT_0, ACCOUNT_1]);
+
+const lucid = await Lucid.new(emulator);
+
+lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase);
+
+// ---- SETUP
+
+const deployTxHash = await new Contract(lucid, {
+  extraOutRef: { txHash: "", outputIndex: 0 },
+  oldPolicyId,
+}).deployScripts();
+
+await lucid.awaitTx(deployTxHash);
+
+const contract = new Contract(lucid, {
+  extraOutRef: { txHash: "", outputIndex: 0 },
+  oldPolicyId,
+  deployTxHash,
 });
 
-Deno.test("Assets <> PlutusData", () => {
-  const assets = { lovelace: 50000000n, ["31"]: 1n, ["313131"]: 10000n };
+// ---- SETUP
 
-  assertEquals(
-    assets,
-    dataToAssets(assetsToData(assets)),
+Deno.test("Migrate", async () => {
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.migrate([0, 1, 13, 444, 600, 702, 9999]),
+  );
+  assert(await contract.hasMigrated(0));
+  assert(await contract.hasMigrated(1));
+  assertEquals(await contract.hasMigrated(299), false);
+});
+
+Deno.test("Burn", async () => {
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.burn(0),
+  );
+  assertEquals(await contract.hasMigrated(0), false);
+});
+
+Deno.test("Move", async () => {
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.move(1),
   );
 });

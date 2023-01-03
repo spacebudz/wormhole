@@ -1,4 +1,9 @@
-import { Data } from "https://deno.land/x/lucid@0.8.4/mod.ts";
+import {
+  Data,
+  OutRef as OutRef_,
+  PolicyId,
+  TxHash,
+} from "https://deno.land/x/lucid@0.8.4/mod.ts";
 
 export const DatumMetadata = Data.Object({
   metadata: Data.Any,
@@ -50,3 +55,9 @@ export const RefAction = Data.Enum([
   Data.Literal("Move"),
 ]);
 export type RefAction = Data.Static<typeof RefAction>;
+
+export type ContractConfig = {
+  extraOutRef: OutRef_;
+  oldPolicyId: PolicyId;
+  deployTxHash?: TxHash;
+};
