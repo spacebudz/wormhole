@@ -236,18 +236,6 @@ export class Contract {
       .toString();
   }
 
-  getPartialWitnesses(tx: Transaction): Promise<TransactionWitnesses> {
-    return this.lucid.fromTx(tx).partialSign();
-  }
-
-  async assembleAndSubmit(
-    tx: Transaction,
-    witnesses: TransactionWitnesses[],
-  ): Promise<TxHash> {
-    return (await this.lucid.fromTx(tx).assemble(witnesses).complete())
-      .submit();
-  }
-
   async migrate(ids: number[]): Promise<TxHash> {
     const refScripts = await this.getDeployedScripts();
 
