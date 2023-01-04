@@ -7,23 +7,28 @@ import {
   fromHex,
   fromText,
   Json,
+  Lovelace,
   Lucid,
   MerkleTree,
   MintingPolicy,
   PolicyId,
+  sha256,
   SpendingValidator,
   toHex,
   toLabel,
   toUnit,
+  Transaction,
+  TransactionWitnesses,
   Tx,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.8.4/mod.ts";
+} from "https://deno.land/x/lucid@0.8.5/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";
-import { ContractConfig } from "./types.ts";
-import * as D from "./types.ts";
+import { ContractConfig, RoyaltyRecipient } from "./types.ts";
+import * as D from "./contract.types.ts";
+import { fromAddress } from "./utils.ts";
 
 export class Contract {
   lucid: Lucid;
@@ -31,6 +36,8 @@ export class Contract {
   referenceAddress: Address;
   lockValidator: SpendingValidator;
   lockAddress: Address;
+  extraMultisig: SpendingValidator;
+  extraAddress: Address;
   mintPolicy: MintingPolicy;
   mintPolicyId: PolicyId;
   config: ContractConfig;
@@ -68,6 +75,25 @@ export class Contract {
 
     this.lockAddress = this.lucid.utils.validatorToAddress(this.lockValidator);
 
+    this.extraMultisig = this.lucid.utils.nativeScriptFromJson({
+      type: "atLeast",
+      required: Math.floor(this.config.extra.initialOwners.length / 2),
+      scripts: this.config.extra.initialOwners.map((owner) => {
+        const { paymentCredential } = this.lucid.utils.getAddressDetails(owner);
+        if (!paymentCredential?.hash || paymentCredential.type === "Script") {
+          throw new Error(
+            "Owner needs to be a public key address or address is invalid.",
+          );
+        }
+        return {
+          type: "sig",
+          keyHash: paymentCredential.hash,
+        };
+      }),
+    });
+
+    this.extraAddress = this.lucid.utils.validatorToAddress(this.extraMultisig);
+
     this.data = metadata.map((m) =>
       concat(
         fromHex(toLabel(222) + fromText(`Bud${m.id}`)),
@@ -94,8 +120,8 @@ export class Contract {
         [
           {
             extraOref: {
-              txHash: { hash: this.config.extraOutRef.txHash },
-              outputIndex: BigInt(this.config.extraOutRef.outputIndex),
+              txHash: { hash: this.config.extra.outRef.txHash },
+              outputIndex: BigInt(this.config.extra.outRef.outputIndex),
             },
             royaltyName: toLabel(500) + fromText("Royalty"),
             ipName: toLabel(600) + fromText("Ip"),
@@ -114,6 +140,112 @@ export class Contract {
     };
 
     this.mintPolicyId = this.lucid.utils.mintingPolicyToId(this.mintPolicy);
+  }
+
+  async mintExtra(): Promise<TxHash> {
+    const refScripts = await this.getDeployedScripts();
+
+    const [extraUtxo] = await this.lucid.utxosByOutRef([
+      this.config.extra.outRef,
+    ]);
+
+    if (!extraUtxo) throw new Error("NoUTxOError");
+
+    const royaltyToken = toUnit(this.mintPolicyId, fromText(`Royalty`), 500);
+    const ipToken = toUnit(this.mintPolicyId, fromText(`Ip`), 600);
+
+    const tx = await this.lucid.newTx()
+      .collectFrom([extraUtxo])
+      .mintAssets({
+        [royaltyToken]: 1n,
+        [ipToken]: 1n,
+      }, Data.to<D.Action>("MintExtra", D.Action))
+      .payToAddress(this.extraAddress, { [royaltyToken]: 1n })
+      .payToAddress(this.extraAddress, { [ipToken]: 1n })
+      .readFrom([refScripts.mint])
+      .complete();
+
+    const txSigned = await tx.sign().complete();
+    return txSigned.submit();
+  }
+
+  /**
+   * Update the Intellectual Property of SpaceBudz.
+   * Specifiy a URL that points to a document describing the IP.
+   * The data behind the URL will be fetched and hashed.
+   * The URL and hash will be part of the datum.
+   */
+  async updateIp(url: string): Promise<Transaction> {
+    const hash = toHex(
+      await fetch(url)
+        .then((res) => res.arrayBuffer())
+        .then(
+          (arrayBuffer) => sha256(new Uint8Array(arrayBuffer)),
+        ),
+    );
+
+    const Ip = Data.Object({ url: Data.String, hash: Data.String });
+    type Ip = Data.Static<typeof Ip>;
+
+    const ipDatum = Data.to<Ip>({ url: fromText(url), hash }, Ip);
+
+    const [ipUtxo] = await this.lucid.utxosAtWithUnit(
+      this.extraAddress,
+      toUnit(this.mintPolicyId, fromText("Ip"), 600),
+    );
+
+    if (!ipUtxo) throw new Error("NoUTxOError");
+
+    return (await this.lucid.newTx()
+      .collectFrom([ipUtxo])
+      .payToAddressWithData(ipUtxo.address, ipDatum, ipUtxo.assets)
+      .attachSpendingValidator(this.extraMultisig)
+      .complete())
+      .toString();
+  }
+
+  async updateRoyalty(
+    royaltyRecipients: RoyaltyRecipient[],
+    minAda: Lovelace = 1000000n,
+  ): Promise<Transaction> {
+    const [royaltyUtxo] = await this.lucid.utxosAtWithUnit(
+      this.extraAddress,
+      toUnit(this.mintPolicyId, fromText("Royalty"), 500),
+    );
+
+    if (!royaltyUtxo) throw new Error("NoUTxOError");
+
+    const royaltyDatum = Data.to<D.RoyaltyInfo>({
+      recipients: royaltyRecipients.map((recipient) => ({
+        address: fromAddress(recipient.address),
+        fee: BigInt(Math.floor(1 / (recipient.fee / 10))),
+        fixedFee: recipient.fixedFee,
+      })),
+      minAda,
+    }, D.RoyaltyInfo);
+
+    return (await this.lucid.newTx()
+      .collectFrom([royaltyUtxo])
+      .payToAddressWithData(
+        royaltyUtxo.address,
+        royaltyDatum,
+        royaltyUtxo.assets,
+      )
+      .attachSpendingValidator(this.extraMultisig)
+      .complete())
+      .toString();
+  }
+
+  getPartialWitnesses(tx: Transaction): Promise<TransactionWitnesses> {
+    return this.lucid.fromTx(tx).partialSign();
+  }
+
+  async assembleAndSubmit(
+    tx: Transaction,
+    witnesses: TransactionWitnesses[],
+  ): Promise<TxHash> {
+    return (await this.lucid.fromTx(tx).assemble(witnesses).complete())
+      .submit();
   }
 
   async migrate(ids: number[]): Promise<TxHash> {
@@ -176,7 +308,6 @@ export class Contract {
       .readFrom([refScripts.mint]).complete();
 
     const txSigned = await tx.sign().complete();
-
     return txSigned.submit();
   }
 

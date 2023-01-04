@@ -1,9 +1,12 @@
 import { ContractConfig } from "./types.ts";
 
 export const budConfig: ContractConfig = {
-  extraOutRef: {
-    txHash: "",
-    outputIndex: 0,
+  extra: {
+    outRef: {
+      txHash: "",
+      outputIndex: 0,
+    },
+    initialOwners: ["", "", "", ""],
   },
   oldPolicyId: "",
   deployTxHash: "",
