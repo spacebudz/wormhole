@@ -21,7 +21,7 @@ import qualified Plutus.MerkleTree as MT
 
 -- | Data and Redeemer ------------------------------------------------------------------
 
-data DatumMetadata = DatumMetadata {metadata :: BuiltinData, version :: Integer}
+data DatumMetadata = DatumMetadata { metadata :: BuiltinData, version :: Integer }
 
 data ContractDetails = ContractDetails { 
                        extraOref          :: Api.TxOutRef
@@ -134,7 +134,7 @@ referenceValidate label222 datumMetadata action ctx = case action of
           Just m -> (m, txOutValue o)
 
     providesUserToken :: Api.CurrencySymbol -> Api.TokenName -> Integer -> Bool
-    providesUserToken cs tn am = any (\(Api.TxInInfo _ out) -> valueOf (txOutValue out) cs tn == am) (txInfoInputs txInfo)
+    providesUserToken cs tn am = any (\(Api.TxInInfo _ out) -> valueOf (txOutValue out) cs tn >= am) (txInfoInputs txInfo)
 
     checkedBurn :: Bool
     checkedBurn = let

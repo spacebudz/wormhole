@@ -18,11 +18,10 @@ import {
   toLabel,
   toUnit,
   Transaction,
-  TransactionWitnesses,
   Tx,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.8.5/mod.ts";
+} from "https://deno.land/x/lucid@0.8.7/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";

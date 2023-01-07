@@ -1,4 +1,4 @@
-import { Data } from "https://deno.land/x/lucid@0.8.5/mod.ts";
+import { Data } from "https://deno.land/x/lucid@0.8.7/mod.ts";
 
 export const DatumMetadata = Data.Object({
   metadata: Data.Any,

@@ -176,5 +176,4 @@ Only a small merkle tree proof needs to be brought on-chain to make sure a Space
 
 ## TODO
 
-- [ ] Move away from PlutusTx -> Aiken.
 - [ ] Listen to chain to show migration event on Twitter (Ogmios).
