@@ -6,17 +6,32 @@ import {
   toShelleyCompatibleBlock,
   TxShelleyCompatible,
 } from "https://raw.githubusercontent.com/spacebudz/denosync/0.1.2/mod.ts";
+import {
+  isAbsolute,
+  toFileUrl,
+} from "https://deno.land/std@0.167.0/path/mod.ts";
 
 const POLICY_ID = Deno.args[0];
 const OGMIOS_URL = Deno.args[1];
-const TWITTER_API_URL = Deno.args[2];
-const TWITTER_API_KEY = Deno.args[3];
+
+export function resolvePath(path: string | URL): URL {
+  if (path instanceof URL) return path;
+  else if (/^(?:[a-z]+:)?\/\//i.test(path)) return new URL(path);
+  else if (isAbsolute(path)) return toFileUrl(path);
+  return toFileUrl(Deno.cwd() + new URL(`file:///${path}`).pathname);
+}
+
+export const { eventHandler }: {
+  eventHandler: (ids: number | number[]) => unknown;
+} = await import(
+  resolvePath(new URL("./wormhole.config.ts", import.meta.url)).href
+);
 
 type WormholeEvent = { point: Point; id: number };
 
 let events: WormholeEvent[] = [];
 
-function rollForward(block: Block, hasExited: boolean) {
+async function rollForward(block: Block) {
   const { blockShelley } = toShelleyCompatibleBlock(block)!;
   const point: Point = {
     hash: blockShelley.headerHash,
@@ -24,7 +39,7 @@ function rollForward(block: Block, hasExited: boolean) {
   };
   events = triggerEvents(point, events);
 
-  watchBlock(blockShelley);
+  await watchBlock(blockShelley);
 }
 
 function rollBackward(point: Point) {
@@ -41,24 +56,13 @@ function triggerEvents(
   return events.filter((event) =>
     point.slot - event.point.slot < confirmations * 20 ? true : (() => {
       console.log("Wormhole event: SpaceBud #" + event.id);
-      // TODO:
-      // fetch(TWITTER_API_URL, {
-      //   method: "POST",
-      //   headers: {
-      //     Authorization: "Bearer " + TWITTER_API_KEY,
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     id: event.id.toString(),
-      //     type: "wormhole",
-      //   }),
-      // }).catch(console.log);
+      eventHandler(event.id);
       return false;
     })()
   );
 }
 
-function watchWormhole(tx: TxShelleyCompatible, point: Point) {
+async function watchWormhole(tx: TxShelleyCompatible, point: Point) {
   if (
     !Object.keys(tx.body.mint?.assets || {})[0]?.startsWith(POLICY_ID)
   ) return;
@@ -73,28 +77,29 @@ function watchWormhole(tx: TxShelleyCompatible, point: Point) {
     ),
   );
   ids.forEach((id) => events.push({ point, id }));
+  await eventHandler(ids);
 }
 
-function tryWatch(
+async function tryWatch(
   tx: TxShelleyCompatible,
   point: Point,
   watcher: (tx: TxShelleyCompatible, point: Point) => unknown,
 ) {
   try {
-    watcher(tx, point);
+    await watcher(tx, point);
   } catch (e) {
     console.log(e);
   }
 }
 
-function watchBlock(blockShelley: BlockShelleyCompatible) {
+async function watchBlock(blockShelley: BlockShelleyCompatible) {
   const transactions = blockShelley.body;
   const point: Point = {
     hash: blockShelley.headerHash,
     slot: blockShelley.header.slot,
   };
   for (const tx of transactions) {
-    tryWatch(tx, point, watchWormhole);
+    await tryWatch(tx, point, watchWormhole);
   }
 }
 
