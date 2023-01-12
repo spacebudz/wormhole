@@ -55,7 +55,6 @@ function triggerEvents(
 ) {
   return events.filter((event) =>
     point.slot - event.point.slot < confirmations * 20 ? true : (() => {
-      console.log("Wormhole event: SpaceBud #" + event.id);
       eventHandler(event.id);
       return false;
     })()
