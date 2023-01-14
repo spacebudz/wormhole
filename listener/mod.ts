@@ -12,7 +12,7 @@ const OGMIOS_URL = Deno.args[1];
 
 export const { eventHandler }: {
   eventHandler: (ids: number | number[]) => unknown;
-} = await import("file:///" + Deno.args[1]);
+} = await import("file:///" + Deno.args[2]);
 
 type WormholeEvent = { point: Point; id: number };
 
