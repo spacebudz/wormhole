@@ -31,6 +31,7 @@ data ContractDetails = ContractDetails {
                      , merkleRoot         :: MT.Hash
                      , refAddress         :: Api.ValidatorHash
                      , lockAddress        :: Api.ValidatorHash
+                     , nonce              :: Integer -- A magic number with 0 utility
                      }
 
 data Action = MintNFT [MT.Proof] | BurnNFT | MintExtra

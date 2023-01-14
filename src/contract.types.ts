@@ -23,6 +23,7 @@ export const DetailsParams = Data.Tuple([Data.Object({
   merkleRoot: Hash,
   refAddress: Data.String,
   lockAddress: Data.String,
+  nonce: Data.BigInt,
 })]);
 export type DetailsParams = Data.Static<typeof DetailsParams>;
 

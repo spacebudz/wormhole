@@ -76,12 +76,12 @@ export class Contract {
 
     this.extraMultisig = this.lucid.utils.nativeScriptFromJson({
       type: "atLeast",
-      required: Math.floor(this.config.extra.initialOwners.length / 2),
+      required: Math.ceil(this.config.extra.initialOwners.length / 2),
       scripts: this.config.extra.initialOwners.map((owner) => {
         const { paymentCredential } = this.lucid.utils.getAddressDetails(owner);
         if (!paymentCredential?.hash || paymentCredential.type === "Script") {
           throw new Error(
-            "Owner needs to be a public key address or address is invalid.",
+            "Owner needs to be a public key address, or address is invalid.",
           );
         }
         return {
@@ -132,6 +132,7 @@ export class Contract {
             lockAddress: this.lucid.utils.validatorToScriptHash(
               this.lockValidator,
             ),
+            nonce: 40525n,
           },
         ],
         D.DetailsParams,
@@ -161,7 +162,11 @@ export class Contract {
       }, Data.to<D.Action>("MintExtra", D.Action))
       .payToAddress(this.extraAddress, { [royaltyToken]: 1n })
       .payToAddress(this.extraAddress, { [ipToken]: 1n })
-      .readFrom([refScripts.mint])
+      .compose(
+        refScripts.mint
+          ? this.lucid.newTx().readFrom([refScripts.mint])
+          : this.lucid.newTx().attachSpendingValidator(this.mintPolicy),
+      )
       .complete();
 
     const txSigned = await tx.sign().complete();
@@ -239,7 +244,7 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     // Order is important since the contract relies on this.
-    const orderedIds = ids.toSorted().reverse();
+    const orderedIds = ids.slice().reverse();
 
     const datas = orderedIds.map((id) => this.data[id]);
     const proofs = datas.map((d) => this.merkleTree.getProof(d));
@@ -292,7 +297,12 @@ export class Contract {
       .payToContract(this.lockAddress, {
         inline: Data.to<PolicyId>(this.mintPolicyId, Data.String),
       }, lockAssets)
-      .readFrom([refScripts.mint]).complete();
+      .compose(
+        refScripts.mint
+          ? this.lucid.newTx().readFrom([refScripts.mint])
+          : this.lucid.newTx().attachSpendingValidator(this.mintPolicy),
+      )
+      .complete();
 
     const txSigned = await tx.sign().complete();
     return txSigned.submit();
@@ -315,7 +325,11 @@ export class Contract {
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: -1n,
       }, Data.to<D.Action>("Burn", D.Action))
       .attachSpendingValidator(this.referenceValidator)
-      .readFrom([refScripts.mint]);
+      .compose(
+        refScripts.mint
+          ? this.lucid.newTx().readFrom([refScripts.mint])
+          : this.lucid.newTx().attachSpendingValidator(this.mintPolicy),
+      );
   }
 
   async burn(id: number): Promise<TxHash> {
@@ -392,8 +406,8 @@ export class Contract {
     return metadata;
   }
 
-  async getDeployedScripts(): Promise<{ mint: UTxO }> {
-    if (!this.config.deployTxHash) throw new Error("Scripts are not deployed.");
+  async getDeployedScripts(): Promise<{ mint: UTxO | null }> {
+    if (!this.config.deployTxHash) return { mint: null };
     const [mint] = await this.lucid.utxosByOutRef([{
       txHash: this.config.deployTxHash,
       outputIndex: 0,
