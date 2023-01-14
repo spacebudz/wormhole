@@ -6,26 +6,13 @@ import {
   toShelleyCompatibleBlock,
   TxShelleyCompatible,
 } from "https://raw.githubusercontent.com/spacebudz/denosync/0.1.2/mod.ts";
-import {
-  isAbsolute,
-  toFileUrl,
-} from "https://deno.land/std@0.167.0/path/mod.ts";
 
 const POLICY_ID = Deno.args[0];
 const OGMIOS_URL = Deno.args[1];
 
-export function resolvePath(path: string | URL): URL {
-  if (path instanceof URL) return path;
-  else if (/^(?:[a-z]+:)?\/\//i.test(path)) return new URL(path);
-  else if (isAbsolute(path)) return toFileUrl(path);
-  return toFileUrl(Deno.cwd() + new URL(`file:///${path}`).pathname);
-}
-
 export const { eventHandler }: {
   eventHandler: (ids: number | number[]) => unknown;
-} = await import(
-  resolvePath(new URL("./wormhole.config.ts", import.meta.url)).href
-);
+} = await import(Deno.args[1]);
 
 type WormholeEvent = { point: Point; id: number };
 
