@@ -4,7 +4,7 @@ import {
   fromText,
   generateSeedPhrase,
   Lucid,
-} from "https://deno.land/x/lucid@0.8.7/mod.ts";
+} from "https://deno.land/x/lucid@0.8.8/mod.ts";
 import { Contract } from "../mod.ts";
 import {
   assert,
