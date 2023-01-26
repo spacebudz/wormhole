@@ -76,12 +76,12 @@ export type Address = Data.Static<typeof Address>;
 export const RoyaltyRecipient = Data.Object({
   address: Address,
   fee: Data.BigInt,
-  fixedFee: Data.BigInt,
+  minFee: Data.Nullable(Data.BigInt),
+  maxFee: Data.Nullable(Data.BigInt),
 });
 type RoyaltyRecipient = Data.Static<typeof RoyaltyRecipient>;
 
 export const RoyaltyInfo = Data.Object({
   recipients: Data.Array(RoyaltyRecipient),
-  minAda: Data.BigInt,
 });
 export type RoyaltyInfo = Data.Static<typeof RoyaltyInfo>;

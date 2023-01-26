@@ -16,5 +16,8 @@ export type RoyaltyRecipient = {
   address: Address;
   /** e.g.: 0.04 (4%) */
   fee: number;
-  fixedFee: Lovelace;
+  /** Optionally set a minimum absolute fee. */
+  minFee?: Lovelace;
+  /** Optionally set a maximum absolute fee. */
+  maxFee?: Lovelace;
 };

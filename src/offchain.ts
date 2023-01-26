@@ -210,7 +210,6 @@ export class Contract {
 
   async updateRoyalty(
     royaltyRecipients: RoyaltyRecipient[],
-    minAda: Lovelace = 1000000n,
   ): Promise<Transaction> {
     const [royaltyUtxo] = await this.lucid.utxosAtWithUnit(
       this.extraAddress,
@@ -223,9 +222,9 @@ export class Contract {
       recipients: royaltyRecipients.map((recipient) => ({
         address: fromAddress(recipient.address),
         fee: BigInt(Math.floor(1 / (recipient.fee / 10))),
-        fixedFee: recipient.fixedFee,
+        minFee: recipient.minFee || null,
+        maxFee: recipient.maxFee || null,
       })),
-      minAda,
     }, D.RoyaltyInfo);
 
     return (await this.lucid.newTx()
