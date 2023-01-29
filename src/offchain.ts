@@ -225,6 +225,7 @@ export class Contract {
         minFee: recipient.minFee || null,
         maxFee: recipient.maxFee || null,
       })),
+      version: 1n,
     }, D.RoyaltyInfo);
 
     return (await this.lucid.newTx()
@@ -243,7 +244,7 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     // Order is important since the contract relies on this.
-    const orderedIds = ids.slice().sort((a, b) => a - b);
+    const orderedIds = ids.slice().sort((a, b) => b - a);
 
     const datas = orderedIds.map((id) => this.data[id]);
     const proofs = datas.map((d) => this.merkleTree.getProof(d));

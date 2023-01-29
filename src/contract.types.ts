@@ -83,5 +83,6 @@ type RoyaltyRecipient = Data.Static<typeof RoyaltyRecipient>;
 
 export const RoyaltyInfo = Data.Object({
   recipients: Data.Array(RoyaltyRecipient),
+  version: Data.BigInt,
 });
 export type RoyaltyInfo = Data.Static<typeof RoyaltyInfo>;
