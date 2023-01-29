@@ -114,7 +114,7 @@ Deno.test("Update royalty", async () => {
 
 Deno.test("Migrate", async () => {
   await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
-    await contract.migrate([0, 1, 13, 444, 600, 702, 9999]),
+    await contract.migrate([0, 1, 13, 9999, 444, 600, 702]),
   );
   assert(await contract.hasMigrated(0));
   assert(await contract.hasMigrated(1));

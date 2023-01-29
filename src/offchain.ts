@@ -7,7 +7,6 @@ import {
   fromHex,
   fromText,
   Json,
-  Lovelace,
   Lucid,
   MerkleTree,
   MintingPolicy,
