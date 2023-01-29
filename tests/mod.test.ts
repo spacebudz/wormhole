@@ -99,7 +99,7 @@ Deno.test("Update royalty", async () => {
   const tx = await contract.updateRoyalty([{
     address: ACCOUNT_0.address,
     fee: 0.016,
-    fixedFee: 2000000n,
+    minFee: 2000000n,
   }]);
   const sig = await lucid.selectWalletFromSeed(ACCOUNT_1.seedPhrase).fromTx(tx)
     .partialSign();
