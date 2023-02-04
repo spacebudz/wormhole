@@ -21,7 +21,7 @@ import qualified Plutus.MerkleTree as MT
 
 -- | Data and Redeemer ------------------------------------------------------------------
 
-data DatumMetadata = DatumMetadata { metadata :: BuiltinData, version :: Integer }
+data DatumMetadata = DatumMetadata { metadata :: BuiltinData, version :: Integer, extra :: BuiltinData }
 
 data ContractDetails = ContractDetails { 
                        extraOref          :: Api.TxOutRef
@@ -40,7 +40,7 @@ data RefAction = Burn | Move
 
 instance Eq DatumMetadata where
     {-# INLINABLE (==) #-}
-    DatumMetadata a b == DatumMetadata c d = a == c && b == d
+    DatumMetadata m v e == DatumMetadata m' v' e' = m == m' && v == v' && e == e'
 
 labelLength = 4
 

@@ -20,7 +20,7 @@ import {
   Tx,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.8.8/mod.ts";
+} from "https://deno.land/x/lucid@0.8.9/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";
@@ -103,6 +103,7 @@ export class Contract {
             Data.to<D.DatumMetadata>({
               metadata: Data.fromJson(m),
               version: 1n,
+              extra: Data.from(Data.void()),
             }, D.DatumMetadata),
           ),
         ), // metadata
@@ -225,6 +226,7 @@ export class Contract {
         maxFee: recipient.maxFee || null,
       })),
       version: 1n,
+      extra: Data.from(Data.void()),
     }, D.RoyaltyInfo);
 
     return (await this.lucid.newTx()
@@ -285,6 +287,7 @@ export class Contract {
             Data.to<D.DatumMetadata>({
               metadata: Data.fromJson(metadata[id]),
               version: 1n,
+              extra: Data.from(Data.void()),
             }, D.DatumMetadata),
             {
               [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,

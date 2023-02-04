@@ -1,8 +1,9 @@
-import { Data } from "https://deno.land/x/lucid@0.8.8/mod.ts";
+import { Data } from "https://deno.land/x/lucid@0.8.9/mod.ts";
 
 export const DatumMetadata = Data.Object({
   metadata: Data.Any,
   version: Data.BigInt,
+  extra: Data.Any,
 });
 export type DatumMetadata = Data.Static<typeof DatumMetadata>;
 
@@ -84,5 +85,6 @@ type RoyaltyRecipient = Data.Static<typeof RoyaltyRecipient>;
 export const RoyaltyInfo = Data.Object({
   recipients: Data.Array(RoyaltyRecipient),
   version: Data.BigInt,
+  extra: Data.Any,
 });
 export type RoyaltyInfo = Data.Static<typeof RoyaltyInfo>;
