@@ -1,7 +1,10 @@
 import { Data } from "https://deno.land/x/lucid@0.8.9/mod.ts";
 
+export const Metadata = Data.Map(Data.String, Data.Any);
+export type Metadata = Data.Static<typeof Metadata>;
+
 export const DatumMetadata = Data.Object({
-  metadata: Data.Any,
+  metadata: Metadata,
   version: Data.BigInt,
   extra: Data.Any,
 });

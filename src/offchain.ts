@@ -101,7 +101,7 @@ export class Contract {
         fromHex(
           lucid.utils.datumToHash(
             Data.to<D.DatumMetadata>({
-              metadata: Data.fromJson(m),
+              metadata: Data.castFrom<D.Metadata>(Data.fromJson(m), D.Metadata),
               version: 1n,
               extra: Data.from(Data.void()),
             }, D.DatumMetadata),
@@ -285,7 +285,10 @@ export class Contract {
           tx.payToContract(
             this.referenceAddress,
             Data.to<D.DatumMetadata>({
-              metadata: Data.fromJson(metadata[id]),
+              metadata: Data.castFrom<D.Metadata>(
+                Data.fromJson(metadata[id]),
+                D.Metadata,
+              ),
               version: 1n,
               extra: Data.from(Data.void()),
             }, D.DatumMetadata),
