@@ -111,8 +111,8 @@ mintValidate c action ctx = case action of
 
 -- | The validator that holds the reference NFTs including the metadata.
 {-# INLINEABLE referenceValidate #-}
-referenceValidate :: BuiltinByteString -> DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
-referenceValidate label222 datumMetadata action ctx = case action of
+referenceValidate :: BuiltinByteString -> BuiltinByteString -> DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
+referenceValidate label100 label222 datumMetadata action ctx = case action of
   Burn -> checkedBurn
   Move -> checkedMove
   where
@@ -148,6 +148,7 @@ referenceValidate label222 datumMetadata action ctx = case action of
                     ownCs == userCs && ownCs == refCs && 
                     -- Matching asset names
                     dropByteString labelLength userName == dropByteString labelLength refName &&
+                    takeByteString labelLength userName == label222 && takeByteString labelLength refName == label100 &&
                     ownName == refName
 
     checkedMove :: Bool
@@ -165,8 +166,8 @@ referenceValidate label222 datumMetadata action ctx = case action of
 
 -- | The validator that locks up the old SpaceBudz.
 {-# INLINEABLE lockValidate #-}
-lockValidate :: Api.CurrencySymbol -> Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
-lockValidate oldCs newCs () ctx = checkedUnlock
+lockValidate :: BuiltinByteString -> BuiltinByteString -> Api.CurrencySymbol -> Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
+lockValidate label100 label222 oldCs newCs () ctx = checkedUnlock
   where
     txInfo :: Api.TxInfo
     txInfo = Api.scriptContextTxInfo ctx
@@ -199,7 +200,8 @@ lockValidate oldCs newCs () ctx = checkedUnlock
                       newCs == userCs && newCs == refCs &&
                       -- | Matching asset names
                       noLabelUserName == dropByteString labelLength refName &&
-                      -- | If there is only lovelace left then you the script utxo can be destroyed.
+                      takeByteString labelLength userName == label222 && takeByteString labelLength refName == label100 &&
+                      -- | If there is only lovelace left then the script utxo can be destroyed.
                       -- However if there are still assets left then they need to be locked again with the correct datum!
                       if V.isZero remainingLockedValue then True 
                       else ownDatum == lockOutDatum && remainingLockedValue == V.noAdaValue lockOutValue
@@ -214,12 +216,12 @@ mintInstance = Api.MintingPolicy $ Api.fromCompiledCode ($$(PlutusTx.compile [||
 referenceInstance :: Scripts.Validator
 referenceInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap l = Scripts.mkUntypedValidator $ referenceValidate (PlutusTx.unsafeFromBuiltinData l)
+    wrap l100 l222 = Scripts.mkUntypedValidator $ referenceValidate (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222)
 
 lockInstance :: Scripts.Validator
 lockInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData c)
+    wrap l100 l222 c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222) (PlutusTx.unsafeFromBuiltinData c)
 
 -- | Utils ------------------------------------------------------------------
 

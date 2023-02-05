@@ -31,10 +31,10 @@ export const DetailsParams = Data.Tuple([Data.Object({
 })]);
 export type DetailsParams = Data.Static<typeof DetailsParams>;
 
-export const RefParams = Data.Tuple([Data.String]);
+export const RefParams = Data.Tuple([Data.String, Data.String]);
 export type RefParams = Data.Static<typeof RefParams>;
 
-export const LockParams = Data.Tuple([Data.String]);
+export const LockParams = Data.Tuple([Data.String, Data.String, Data.String]);
 export type LockParams = Data.Static<typeof LockParams>;
 
 export const Proof = Data.Array(Data.Enum([

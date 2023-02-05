@@ -56,6 +56,7 @@ export class Contract {
     this.referenceValidator = {
       type: "PlutusV2",
       script: applyParamsToScript<D.RefParams>(scripts.reference, [
+        toLabel(100),
         toLabel(222),
       ], D.RefParams),
     };
@@ -67,6 +68,8 @@ export class Contract {
     this.lockValidator = {
       type: "PlutusV2",
       script: applyParamsToScript<D.LockParams>(scripts.lock, [
+        toLabel(100),
+        toLabel(222),
         this.config.oldPolicyId,
       ], D.LockParams),
     };
@@ -324,7 +327,7 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     return this.lucid.newTx()
-      .collectFrom([refNFTUtxo], Data.void())
+      .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Burn", D.RefAction))
       .mintAssets({
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: -1n,
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: -1n,
