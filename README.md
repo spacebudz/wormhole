@@ -147,7 +147,10 @@ move(id: number): Promise<TxHash>
 updateIp(url: string): Promise<Transaction> 
 ```
 ```ts
-updateRoyalty(royaltyRecipients: RoyaltyRecipient[], minAda: Lovelace = 1000000n): Promise<Transaction> 
+updateRoyalty(royaltyRecipients: RoyaltyRecipient[]): Promise<Transaction> 
+```
+```ts
+getRoyalty(): Promise<RoyaltyRecipient[]>
 ```
 ```ts
 getMetadata(id: number): Promise<Json>
@@ -173,7 +176,3 @@ To validate metadata and correctness of the minted SpaceBud a merkle tree is use
 metadata hash + asset name of reference NFT + asset name of user NFT + asset name of single asset sent to Lock address
 ```
 Only a small merkle tree proof needs to be brought on-chain to make sure a SpaceBud is minted correctly.
-
-## TODO
-
-- [ ] Listen to chain to show migration event on Twitter (Ogmios).

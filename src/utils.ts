@@ -1,6 +1,7 @@
 import {
   Address,
   getAddressDetails,
+  Lucid,
 } from "https://deno.land/x/lucid@0.8.9/mod.ts";
 import * as D from "./contract.types.ts";
 
@@ -31,4 +32,35 @@ export function fromAddress(address: Address): D.Address {
       }
       : null,
   };
+}
+
+export function toAddress(address: D.Address, lucid: Lucid): Address {
+  const paymentCredential = (() => {
+    if ("PublicKeyCredential" in address.paymentCredential) {
+      return lucid.utils.keyHashToCredential(
+        address.paymentCredential.PublicKeyCredential[0],
+      );
+    } else {
+      return lucid.utils.scriptHashToCredential(
+        address.paymentCredential.ScriptCredential[0],
+      );
+    }
+  })();
+  const stakeCredential = (() => {
+    if (!address.stakeCredential) return undefined;
+    if ("Inline" in address.stakeCredential) {
+      if ("PublicKeyCredential" in address.stakeCredential.Inline[0]) {
+        return lucid.utils.keyHashToCredential(
+          address.stakeCredential.Inline[0].PublicKeyCredential[0],
+        );
+      } else {
+        return lucid.utils.scriptHashToCredential(
+          address.stakeCredential.Inline[0].ScriptCredential[0],
+        );
+      }
+    } else {
+      return undefined;
+    }
+  })();
+  return lucid.utils.credentialToAddress(paymentCredential, stakeCredential);
 }

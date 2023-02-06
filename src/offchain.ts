@@ -26,7 +26,7 @@ import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";
 import { ContractConfig, RoyaltyRecipient } from "./types.ts";
 import * as D from "./contract.types.ts";
-import { fromAddress } from "./utils.ts";
+import { fromAddress, toAddress } from "./utils.ts";
 
 export class Contract {
   lucid: Lucid;
@@ -242,6 +242,30 @@ export class Contract {
       .attachSpendingValidator(this.extraMultisig)
       .complete())
       .toString();
+  }
+
+  /** Return the datum of the UTxO the royalty token is locked in. */
+  async getRoyaltyInfo(): Promise<{ utxo: UTxO; royaltyInfo: D.RoyaltyInfo }> {
+    const utxo = await this.lucid.utxoByUnit(
+      toUnit(this.mintPolicyId, fromText("Royalty"), 500),
+    );
+    if (!utxo) throw new Error("Royalty info not found.");
+
+    return {
+      utxo,
+      royaltyInfo: await this.lucid.datumOf<D.RoyaltyInfo>(utxo, D.RoyaltyInfo),
+    };
+  }
+
+  async getRoyalty(): Promise<RoyaltyRecipient[]> {
+    const { royaltyInfo } = await this.getRoyaltyInfo();
+
+    return royaltyInfo.recipients.map((recipient) => ({
+      address: toAddress(recipient.address, this.lucid),
+      fee: 10 / Number(recipient.fee),
+      minFee: recipient.minFee,
+      maxFee: recipient.maxFee,
+    }));
   }
 
   async migrate(ids: number[]): Promise<TxHash> {
