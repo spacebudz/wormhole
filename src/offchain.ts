@@ -20,7 +20,7 @@ import {
   Tx,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.9.1/mod.ts";
+} from "https://deno.land/x/lucid@0.9.2/mod.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";

@@ -8,7 +8,7 @@ import {
   PolicyId,
   toHex,
   toUnit,
-} from "https://deno.land/x/lucid@0.9.1/mod.ts";
+} from "https://deno.land/x/lucid@0.9.2/mod.ts";
 import { Contract } from "../mod.ts";
 import { assert } from "https://deno.land/std@0.145.0/testing/asserts.ts";
 import * as D from "../src/contract.types.ts";

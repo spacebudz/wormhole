@@ -1,4 +1,4 @@
-import { Data } from "https://deno.land/x/lucid@0.9.1/mod.ts";
+import { Data } from "https://deno.land/x/lucid@0.9.2/mod.ts";
 
 export const Metadata = Data.Map(Data.String, Data.Any);
 export type Metadata = Data.Static<typeof Metadata>;
