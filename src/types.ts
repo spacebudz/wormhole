@@ -1,10 +1,4 @@
-import {
-  Address,
-  Lovelace,
-  OutRef,
-  PolicyId,
-  TxHash,
-} from "https://deno.land/x/lucid@0.9.2/mod.ts";
+import { Address, Lovelace, OutRef, PolicyId, TxHash } from "../deps.ts";
 
 export type ContractConfig = {
   extra: { outRef: OutRef; initialOwners: Address[] };

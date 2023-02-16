@@ -20,7 +20,7 @@ import {
   Tx,
   TxHash,
   UTxO,
-} from "https://deno.land/x/lucid@0.9.2/mod.ts";
+} from "../deps.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
 import { budConfig } from "./config.ts";
@@ -191,7 +191,7 @@ export class Contract {
         ),
     );
 
-    const Ip = Data.Object({ url: Data.String, hash: Data.String });
+    const Ip = Data.Object({ url: Data.Bytes(), hash: Data.Bytes() });
     type Ip = Data.Static<typeof Ip>;
 
     const ipDatum = Data.to<Ip>({ url: fromText(url), hash }, Ip);
@@ -327,7 +327,7 @@ export class Contract {
         return tx;
       })())
       .payToContract(this.lockAddress, {
-        inline: Data.to<PolicyId>(this.mintPolicyId, Data.String),
+        inline: Data.to<PolicyId>(this.mintPolicyId, Data.Bytes()),
       }, lockAssets)
       .compose(
         refScripts.mint

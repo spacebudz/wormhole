@@ -8,7 +8,7 @@ import {
   PolicyId,
   toHex,
   toUnit,
-} from "https://deno.land/x/lucid@0.9.2/mod.ts";
+} from "../deps.ts";
 import { Contract } from "../mod.ts";
 import { assert } from "https://deno.land/std@0.145.0/testing/asserts.ts";
 import * as D from "../src/contract.types.ts";
@@ -165,7 +165,7 @@ Deno.test("Evil migration failed", async () => {
         return tx;
       })())
       .payToContract(contract.lockAddress, {
-        inline: Data.to<PolicyId>(contract.mintPolicyId, Data.String),
+        inline: Data.to<PolicyId>(contract.mintPolicyId, Data.Bytes()),
       }, lockAssets)
       .compose(
         refScripts.mint

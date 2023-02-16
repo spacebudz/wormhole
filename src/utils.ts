@@ -1,8 +1,4 @@
-import {
-  Address,
-  getAddressDetails,
-  Lucid,
-} from "https://deno.land/x/lucid@0.9.2/mod.ts";
+import { Address, getAddressDetails, Lucid } from "../deps.ts";
 import * as D from "./contract.types.ts";
 
 export function fromAddress(address: Address): D.Address {
