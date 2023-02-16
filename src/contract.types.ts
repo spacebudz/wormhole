@@ -33,7 +33,10 @@ export const DetailsParams = Data.Tuple([Data.Object({
 })]);
 export type DetailsParams = Data.Static<typeof DetailsParams>;
 
-export const RefParams = Data.Tuple([Data.Bytes(), Data.Bytes()]);
+export const RefParams = Data.Tuple([
+  Data.Bytes({ minLength: 4, maxLength: 4 }),
+  Data.Bytes({ minLength: 4, maxLength: 4 }),
+]);
 export type RefParams = Data.Static<typeof RefParams>;
 
 export const LockParams = Data.Tuple([
