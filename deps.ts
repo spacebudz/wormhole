@@ -1,1 +1,1 @@
-export * from "https://raw.githubusercontent.com/spacebudz/lucid/main/mod.ts"; // TODO: Change to specific version
+export * from "https://deno.land/x/lucid@0.9.3/mod.ts";
