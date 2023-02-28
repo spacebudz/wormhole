@@ -21,27 +21,32 @@ export const Hash = Data.Object({
 });
 export type Hash = Data.Static<typeof Hash>;
 
-export const DetailsParams = Data.Tuple([Data.Object({
-  extraOref: OutRef,
-  royaltyName: Data.Bytes(),
-  ipName: Data.Bytes(),
-  oldPolicyId: Data.Bytes({ minLength: 28, maxLength: 28 }),
-  merkleRoot: Hash,
-  refAddress: Data.Bytes({ minLength: 28, maxLength: 28 }),
-  lockAddress: Data.Bytes({ minLength: 28, maxLength: 28 }),
-  nonce: Data.Integer(),
-})]);
+export const DetailsParams = Data.Tuple([
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 100
+  Data.Object({
+    extraOref: OutRef,
+    royaltyName: Data.Bytes(),
+    ipName: Data.Bytes(),
+    oldPolicyId: Data.Bytes({ minLength: 28, maxLength: 28 }),
+    merkleRoot: Hash,
+    refAddress: Data.Bytes({ minLength: 28, maxLength: 28 }),
+    lockAddress: Data.Bytes({ minLength: 28, maxLength: 28 }),
+    nonce: Data.Integer(),
+  }),
+]);
 export type DetailsParams = Data.Static<typeof DetailsParams>;
 
 export const RefParams = Data.Tuple([
-  Data.Bytes({ minLength: 4, maxLength: 4 }),
-  Data.Bytes({ minLength: 4, maxLength: 4 }),
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 1
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 100
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 222
 ]);
 export type RefParams = Data.Static<typeof RefParams>;
 
 export const LockParams = Data.Tuple([
-  Data.Bytes({ minLength: 4, maxLength: 4 }),
-  Data.Bytes({ minLength: 4, maxLength: 4 }),
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 1
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 100
+  Data.Bytes({ minLength: 4, maxLength: 4 }), // label 222
   Data.Bytes({ minLength: 28, maxLength: 28 }),
 ]);
 export type LockParams = Data.Static<typeof LockParams>;

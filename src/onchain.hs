@@ -49,8 +49,8 @@ labelLength = 4
 -- BurnNFT: Destroys this pair again. Only the holder of the NFT is allowed to proceed with that action.
 -- MintExtra: Mints royalty and IP NFT
 {-# INLINEABLE mintValidate #-}
-mintValidate :: ContractDetails -> Action -> Api.ScriptContext -> Bool
-mintValidate c action ctx = case action of
+mintValidate :: BuiltinByteString -> ContractDetails -> Action -> Api.ScriptContext -> Bool
+mintValidate label100 c action ctx = case action of
   MintNFT merkleProofs -> checkedMintNFT merkleProofs
   BurnNFT -> checkedBurnNFT
   MintExtra -> checkedMintExtra
@@ -67,8 +67,13 @@ mintValidate c action ctx = case action of
 
     checkedMintExtra :: Bool
     checkedMintExtra = -- | Mint royalty NFT (500) and Intellectual Property NFT (600)
+                       -- As an exception we also need to mint the reference NFTs for the twin SpaceBudz!
                             Api.spendsOutput txInfo (Api.txOutRefId (extraOref c)) (Api.txOutRefIdx (extraOref c)) &&
-                            txMint == V.singleton ownSymbol (royaltyName c) 1 <> V.singleton ownSymbol (ipName c) 1
+                            txMint == V.singleton ownSymbol (royaltyName c) 1                          <> 
+                                      V.singleton ownSymbol (ipName c) 1                               <>
+                                      V.singleton ownSymbol (Api.TokenName (label100 <> "Bud1903")) 1  <>
+                                      V.singleton ownSymbol (Api.TokenName (label100 <> "Bud6413")) 1
+
 
     checkedBurnNFT :: Bool
     checkedBurnNFT = all (\(cs,_,am) -> if cs == ownSymbol then am == -1 else True) (V.flattenValue txMint)
@@ -111,8 +116,8 @@ mintValidate c action ctx = case action of
 
 -- | The validator that holds the reference NFTs including the metadata.
 {-# INLINEABLE referenceValidate #-}
-referenceValidate :: BuiltinByteString -> BuiltinByteString -> DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
-referenceValidate label100 label222 datumMetadata action ctx = case action of
+referenceValidate :: BuiltinByteString -> BuiltinByteString -> BuiltinByteString -> DatumMetadata -> RefAction -> Api.ScriptContext -> Bool
+referenceValidate label1 label100 label222 datumMetadata action ctx = case action of
   Burn -> checkedBurn
   Move -> checkedMove
   where
@@ -142,13 +147,17 @@ referenceValidate label100 label222 datumMetadata action ctx = case action of
                     -- Allow burning only one pair (reference NFT and user token) at once
                     [(userCs, Api.TokenName userName, userAm), (refCs, Api.TokenName refName, refAm)] = V.flattenValue txMint
                     [(ownCs, Api.TokenName ownName, _)] = V.flattenValue (V.noAdaValue ownValue)
+                    -- | This is required for the twins!
+                    id = dropByteString 7 userName
+                    refLabel = if id == "1903" || id == "6413" then label1 else label100
                   in
                     -- Matching policy id, quantities
                     -1 == userAm && -1 == refAm       &&
                     ownCs == userCs && ownCs == refCs && 
                     -- Matching asset names
+                    -- Exception for twins: Ref name needs to include label1. We don't allow to burn the reference NFT with the label100
                     dropByteString labelLength userName == dropByteString labelLength refName &&
-                    takeByteString labelLength userName == label222 && takeByteString labelLength refName == label100 &&
+                    takeByteString labelLength userName == label222 && takeByteString labelLength refName == refLabel &&
                     ownName == refName
 
     checkedMove :: Bool
@@ -166,8 +175,8 @@ referenceValidate label100 label222 datumMetadata action ctx = case action of
 
 -- | The validator that locks up the old SpaceBudz.
 {-# INLINEABLE lockValidate #-}
-lockValidate :: BuiltinByteString -> BuiltinByteString -> Api.CurrencySymbol -> Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
-lockValidate label100 label222 oldCs newCs () ctx = checkedUnlock
+lockValidate :: BuiltinByteString -> BuiltinByteString -> BuiltinByteString -> Api.CurrencySymbol -> Api.CurrencySymbol -> () -> Api.ScriptContext -> Bool
+lockValidate label1 label100 label222 oldCs newCs () ctx = checkedUnlock
   where
     txInfo :: Api.TxInfo
     txInfo = Api.scriptContextTxInfo ctx
@@ -190,6 +199,9 @@ lockValidate label100 label222 oldCs newCs () ctx = checkedUnlock
                       -- | Allow burning only one pair (reference NFT and user token) at once.
                       [(userCs, Api.TokenName userName, userAm), (refCs, Api.TokenName refName, refAm)] = V.flattenValue txMint
                       noLabelUserName = dropByteString labelLength userName -- "e.g. Bud123"
+                      -- | This is required for the twins!
+                      id = dropByteString 3 noLabelUserName
+                      refLabel = if id == "1903" || id == "6413" then label1 else label100
                       -- | Remove the asset from the total value that is allowed to be unlocked.
                       remainingLockedValue = noAdaOwnValue - V.singleton oldCs (Api.TokenName ("Space" <> noLabelUserName)) 1
                       -- | If there is remaining value locked then we need to check if there exists a new script output with this value.
@@ -199,8 +211,9 @@ lockValidate label100 label222 oldCs newCs () ctx = checkedUnlock
                       -1 == userAm && -1 == refAm &&
                       newCs == userCs && newCs == refCs &&
                       -- | Matching asset names
+                      -- Exception for twins: Ref name needs to include label1. We don't allow to unlock the reference NFT with the label100
                       noLabelUserName == dropByteString labelLength refName &&
-                      takeByteString labelLength userName == label222 && takeByteString labelLength refName == label100 &&
+                      takeByteString labelLength userName == label222 && takeByteString labelLength refName == refLabel &&
                       -- | If there is only lovelace left then the script utxo can be destroyed.
                       -- However if there are still assets left then they need to be locked again with the correct datum!
                       if V.isZero remainingLockedValue then True 
@@ -211,17 +224,17 @@ lockValidate label100 label222 oldCs newCs () ctx = checkedUnlock
 mintInstance :: Scripts.MintingPolicy
 mintInstance = Api.MintingPolicy $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap c = Scripts.mkUntypedMintingPolicy $ mintValidate (PlutusTx.unsafeFromBuiltinData c)
+    wrap l100 c = Scripts.mkUntypedMintingPolicy $ mintValidate (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData c)
 
 referenceInstance :: Scripts.Validator
 referenceInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap l100 l222 = Scripts.mkUntypedValidator $ referenceValidate (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222)
+    wrap l1 l100 l222 = Scripts.mkUntypedValidator $ referenceValidate (PlutusTx.unsafeFromBuiltinData l1) (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222)
 
 lockInstance :: Scripts.Validator
 lockInstance = Api.Validator $ Api.fromCompiledCode ($$(PlutusTx.compile [|| wrap ||]))
   where
-    wrap l100 l222 c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222) (PlutusTx.unsafeFromBuiltinData c)
+    wrap l1 l100 l222 c = Scripts.mkUntypedValidator $ lockValidate (PlutusTx.unsafeFromBuiltinData l1) (PlutusTx.unsafeFromBuiltinData l100) (PlutusTx.unsafeFromBuiltinData l222) (PlutusTx.unsafeFromBuiltinData c)
 
 -- | Utils ------------------------------------------------------------------
 

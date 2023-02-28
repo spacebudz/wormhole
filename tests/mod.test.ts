@@ -32,6 +32,7 @@ const ACCOUNT_0 = await generateAccount({
   [oldPolicyId + fromText(`SpaceBud${600}`)]: 1n,
   [oldPolicyId + fromText(`SpaceBud${702}`)]: 1n,
   [oldPolicyId + fromText(`SpaceBud${9999}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${1903}`)]: 2n, // twin
 });
 const ACCOUNT_1 = await generateAccount({ lovelace: 75000000000n });
 
@@ -121,6 +122,17 @@ Deno.test("Migrate", async () => {
   assertEquals(await contract.hasMigrated(299), false);
 });
 
+Deno.test("Migrate twin", async () => {
+  assert(!(await contract.hasMigrated(1903)));
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.migrate([1903]),
+  );
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.migrate([1903]),
+  );
+  assert(await contract.hasMigrated(1903));
+});
+
 Deno.test("Burn", async () => {
   await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
     await contract.burn(0),
@@ -132,4 +144,20 @@ Deno.test("Move", async () => {
   await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
     await contract.move(1),
   );
+});
+
+Deno.test("Move twin", async () => {
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.move(1903),
+  );
+});
+
+Deno.test("Burn twin", async () => {
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.burn(1903),
+  );
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.burn(1903),
+  );
+  assertEquals(await contract.hasMigrated(1903), false);
 });

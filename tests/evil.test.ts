@@ -37,7 +37,7 @@ const ACCOUNT_0 = await generateAccount({
 const ACCOUNT_1 = await generateAccount({
   [oldPolicyId + fromText(`SpaceBud${0}`)]: 1n,
   [oldPolicyId + fromText(`SpaceBud${1}`)]: 1n,
-  [oldPolicyId + fromText(`SpaceBud${123}`)]: 2n, // assuming this is a twin
+  [oldPolicyId + fromText(`SpaceBud${1903}`)]: 2n, // assuming this is a twin
   lovelace: 75000000000n,
 });
 
@@ -94,9 +94,9 @@ const contract = new Contract(lucid, {
 
 Deno.test("Good migration", async () => {
   lucid.selectWalletFromSeed(ACCOUNT_1.seedPhrase);
-  await lucid.awaitTx(await contract.migrate([0, 1, 123]));
+  await lucid.awaitTx(await contract.migrate([0, 1, 1903]));
   lucid.selectWalletFromSeed(ACCOUNT_1.seedPhrase);
-  await lucid.awaitTx(await contract.migrate([123]));
+  await lucid.awaitTx(await contract.migrate([1903]));
   lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase);
   await lucid.awaitTx(await contract.migrate([13]));
 });
@@ -254,7 +254,7 @@ Deno.test("Evil unlocking failed", async () => {
   lucid.selectWalletFromSeed(ACCOUNT_1.seedPhrase);
   let failed = false;
   try {
-    const id = 123;
+    const id = 1903;
     const oldBud = toUnit(
       contract.config.oldPolicyId,
       fromText(`SpaceBud${id}`),

@@ -28,6 +28,14 @@ import { ContractConfig, RoyaltyRecipient } from "./types.ts";
 import * as D from "./contract.types.ts";
 import { fromAddress, toAddress } from "./utils.ts";
 
+// The twin SpaceBudz add unfortunately some extra complexity to the contract. But whatever.. it's solvable.
+const TWIN0 = 1903;
+const TWIN1 = 6413;
+
+function isTwin(id: number) {
+  return id === TWIN0 || id === TWIN1;
+}
+
 export class Contract {
   lucid: Lucid;
   referenceValidator: SpendingValidator;
@@ -56,6 +64,7 @@ export class Contract {
     this.referenceValidator = {
       type: "PlutusV2",
       script: applyParamsToScript<D.RefParams>(scripts.reference, [
+        toLabel(1),
         toLabel(100),
         toLabel(222),
       ], D.RefParams),
@@ -68,6 +77,7 @@ export class Contract {
     this.lockValidator = {
       type: "PlutusV2",
       script: applyParamsToScript<D.LockParams>(scripts.lock, [
+        toLabel(1),
         toLabel(100),
         toLabel(222),
         this.config.oldPolicyId,
@@ -95,11 +105,15 @@ export class Contract {
 
     this.extraAddress = this.lucid.utils.validatorToAddress(this.extraMultisig);
 
+    // We have to make an exception for the twins.
+    // 'Reference' NFTs for them are minted with a different label.
+    // They are just some mock NFTs (with label 1 instead of 100) in order to keep the contract as it is.
+    // The actual reference NFTs for the twins are manually preminted.
     this.data = metadata.map((m) =>
       concat(
         fromHex(toLabel(222) + fromText(`Bud${m.id}`)),
-        fromHex(toLabel(100) + fromText(`Bud${m.id}`)),
-        fromHex(toLabel(100) + fromText(`Bud${m.id}`)),
+        fromHex(toLabel(isTwin(m.id) ? 1 : 100) + fromText(`Bud${m.id}`)),
+        fromHex(toLabel(isTwin(m.id) ? 1 : 100) + fromText(`Bud${m.id}`)),
         new TextEncoder().encode(`SpaceBud${m.id}`),
         fromHex(
           lucid.utils.datumToHash(
@@ -120,6 +134,7 @@ export class Contract {
       script: applyParamsToScript<D.DetailsParams>(
         scripts.mint,
         [
+          toLabel(100),
           {
             extraOref: {
               txHash: { hash: this.config.extra.outRef.txHash },
@@ -145,6 +160,7 @@ export class Contract {
     this.mintPolicyId = this.lucid.utils.mintingPolicyToId(this.mintPolicy);
   }
 
+  /** Mint Royalty and IP token. We also mint the reference NFT UTxOs for the twins manually, this is an expection, but needs to be done! */
   async mintExtra(): Promise<TxHash> {
     const refScripts = await this.getDeployedScripts();
 
@@ -157,14 +173,47 @@ export class Contract {
     const royaltyToken = toUnit(this.mintPolicyId, fromText(`Royalty`), 500);
     const ipToken = toUnit(this.mintPolicyId, fromText(`Ip`), 600);
 
+    const twin0Token = toUnit(this.mintPolicyId, fromText(`Bud${TWIN0}`), 100);
+    const twin1Token = toUnit(this.mintPolicyId, fromText(`Bud${TWIN1}`), 100);
+
     const tx = await this.lucid.newTx()
       .collectFrom([extraUtxo])
       .mintAssets({
         [royaltyToken]: 1n,
         [ipToken]: 1n,
+        [twin0Token]: 1n,
+        [twin1Token]: 1n,
       }, Data.to<D.Action>("MintExtra", D.Action))
       .payToAddress(this.extraAddress, { [royaltyToken]: 1n })
       .payToAddress(this.extraAddress, { [ipToken]: 1n })
+      .payToContract(
+        this.referenceAddress,
+        Data.to<D.DatumMetadata>({
+          metadata: Data.castFrom<D.Metadata>(
+            Data.fromJson(metadata[TWIN0]),
+            D.Metadata,
+          ),
+          version: 1n,
+          extra: Data.from(Data.void()),
+        }, D.DatumMetadata),
+        {
+          [twin0Token]: 1n,
+        },
+      )
+      .payToContract(
+        this.referenceAddress,
+        Data.to<D.DatumMetadata>({
+          metadata: Data.castFrom<D.Metadata>(
+            Data.fromJson(metadata[TWIN1]),
+            D.Metadata,
+          ),
+          version: 1n,
+          extra: Data.from(Data.void()),
+        }, D.DatumMetadata),
+        {
+          [twin1Token]: 1n,
+        },
+      )
       .compose(
         refScripts.mint
           ? this.lucid.newTx().readFrom([refScripts.mint])
@@ -292,7 +341,8 @@ export class Contract {
     const mintAssets: Assets = orderedIds.reduce((prev, id) => ({
       ...prev,
       ...{
-        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), isTwin(id) ? 1 : 100)]:
+          1n,
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: 1n,
       },
     }), {});
@@ -320,7 +370,13 @@ export class Contract {
               extra: Data.from(Data.void()),
             }, D.DatumMetadata),
             {
-              [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: 1n,
+              [
+                toUnit(
+                  this.mintPolicyId,
+                  fromText(`Bud${id}`),
+                  isTwin(id) ? 1 : 100,
+                )
+              ]: 1n,
             },
           );
         });
@@ -343,7 +399,7 @@ export class Contract {
   async _burn(id: number): Promise<Tx> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
-      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), isTwin(id) ? 1 : 100),
     );
 
     if (!refNFTUtxo) throw new Error("NoUTxOError");
@@ -353,7 +409,8 @@ export class Contract {
     return this.lucid.newTx()
       .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Burn", D.RefAction))
       .mintAssets({
-        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100)]: -1n,
+        [toUnit(this.mintPolicyId, fromText(`Bud${id}`), isTwin(id) ? 1 : 100)]:
+          -1n,
         [toUnit(this.mintPolicyId, fromText(`Bud${id}`), 222)]: -1n,
       }, Data.to<D.Action>("Burn", D.Action))
       .attachSpendingValidator(this.referenceValidator)
@@ -409,7 +466,7 @@ export class Contract {
   async hasMigrated(id: number): Promise<boolean> {
     const [refNFTUtxo] = await this.lucid.utxosAtWithUnit(
       this.referenceAddress,
-      toUnit(this.mintPolicyId, fromText(`Bud${id}`), 100),
+      toUnit(this.mintPolicyId, fromText(`Bud${id}`), isTwin(id) ? 1 : 100),
     );
 
     if (!refNFTUtxo) return false;

@@ -176,3 +176,10 @@ To validate metadata and correctness of the minted SpaceBud a merkle tree is use
 metadata hash + asset name of reference NFT + asset name of user NFT + asset name of single asset sent to Lock address
 ```
 Only a small merkle tree proof needs to be brought on-chain to make sure a SpaceBud is minted correctly.
+
+## Exceptions for Twin SpaceBudz
+
+To keep integrity for the twins `1903` and `6413` (with quantity 2) some extra steps are required.
+Important is that there exists only ever one reference NFT. In order to achieve this the reference NFTs including their respective metadata are preminted and locked in the script UTxO.
+Whenever you migrate a twin you mint a mock reference NFT (with label 1), that doesn't really have any functionality, but it allows to keep the existing contract logic as it is. 
+No unnecessary complexity and risk needs to be introduced into the contract.
