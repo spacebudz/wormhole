@@ -175,7 +175,10 @@ To validate metadata and correctness of the minted SpaceBud a merkle tree is use
 ```
 metadata hash + asset name of reference NFT + asset name of user NFT + asset name of single asset sent to Lock address
 ```
-Only a small merkle tree proof needs to be brought on-chain to make sure a SpaceBud is minted correctly.
+Only a small merkle tree proof needs to be brought on-chain to make sure a SpaceBud is minted correctly
+
+<img width="60%" src="./assets/architecture.png" align="center"/>
+
 
 ## Exceptions for Twin SpaceBudz
 
