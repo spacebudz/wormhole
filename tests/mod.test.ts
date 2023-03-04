@@ -33,6 +33,9 @@ const ACCOUNT_0 = await generateAccount({
   [oldPolicyId + fromText(`SpaceBud${702}`)]: 1n,
   [oldPolicyId + fromText(`SpaceBud${9999}`)]: 1n,
   [oldPolicyId + fromText(`SpaceBud${1903}`)]: 2n, // twin
+  // test sorting
+  [oldPolicyId + fromText(`SpaceBud${55}`)]: 1n,
+  [oldPolicyId + fromText(`SpaceBud${1111}`)]: 1n,
 });
 const ACCOUNT_1 = await generateAccount({ lovelace: 75000000000n });
 
@@ -117,6 +120,11 @@ Deno.test("Migrate", async () => {
   await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
     await contract.migrate([0, 1, 13, 9999, 444, 600, 702]),
   );
+
+  await lucid.selectWalletFromSeed(ACCOUNT_0.seedPhrase).awaitTx(
+    await contract.migrate([55, 1111]),
+  );
+
   assert(await contract.hasMigrated(0));
   assert(await contract.hasMigrated(1));
   assertEquals(await contract.hasMigrated(299), false);

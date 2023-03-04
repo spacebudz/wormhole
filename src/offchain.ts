@@ -321,7 +321,8 @@ export class Contract {
     const refScripts = await this.getDeployedScripts();
 
     // Order is important since the contract relies on this.
-    const orderedIds = ids.slice().sort((a, b) => b - a);
+    // We are sorting ids (as string not as number) in reverse/descending order
+    const orderedIds = ids.slice().sort().reverse();
 
     const datas = orderedIds.map((id) => this.data[id]);
     const proofs = datas.map((d) => this.merkleTree.getProof(d));
