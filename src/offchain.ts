@@ -109,12 +109,12 @@ export class Contract {
     // 'Reference' NFTs for them are minted with a different label.
     // They are just some mock NFTs (with label 1 instead of 100) in order to keep the contract as it is.
     // The actual reference NFTs for the twins are manually preminted.
-    this.data = metadata.map((m) =>
+    this.data = metadata.map((m, id) =>
       concat(
-        fromHex(toLabel(222) + fromText(`Bud${m.id}`)),
-        fromHex(toLabel(isTwin(m.id) ? 1 : 100) + fromText(`Bud${m.id}`)),
-        fromHex(toLabel(isTwin(m.id) ? 1 : 100) + fromText(`Bud${m.id}`)),
-        new TextEncoder().encode(`SpaceBud${m.id}`),
+        fromHex(toLabel(222) + fromText(`Bud${id}`)),
+        fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
+        fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
+        new TextEncoder().encode(`SpaceBud${id}`),
         fromHex(
           lucid.utils.datumToHash(
             Data.to<D.DatumMetadata>({
@@ -150,7 +150,7 @@ export class Contract {
             lockAddress: this.lucid.utils.validatorToScriptHash(
               this.lockValidator,
             ),
-            nonce: 40525n,
+            nonce: 23321n,
           },
         ],
         D.DetailsParams,
