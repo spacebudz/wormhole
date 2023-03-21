@@ -8,12 +8,18 @@ The SpaceBudz wormhole contract. Moving from CIP-0025 to CIP-0068.
 
 ## Official SpaceBudz Policy
 
-Policy Id: **`N/A`**\
-⚠️ The contract is not finalized yet
+Policy Id: **4523c5e21d409b81c95b45b0aea275b8ea1406e6cafea5583b9f8a5f**
 
 ## Requirements
 
 - Deno >= 1.28.1
+
+## Installation
+
+### NPM
+```
+npm install @spacebudz/wormhole
+```
 
 ## Test
 
@@ -22,7 +28,7 @@ Policy Id: **`N/A`**\
 Old SpaceBudz follow CIP-0025 and have the following asset name structure: `SpaceBud{id}` (e.g. `SpaceBud123`). But we leave out the metadata since they are not relevant for testing the contract.
 
 ```ts
-import { Lucid, Blockfrost, MintingPolicy } from "https://deno.land/x/lucid@0.8.5/mod.ts";
+import { Lucid, Blockfrost, MintingPolicy } from "https://deno.land/x/lucid@0.9.6/mod.ts";
 
 const lucid = await Lucid.new(new Blockfrost(...), "Preview");
 
@@ -66,7 +72,7 @@ console.log(await mockMint());
 2. **Init contract and deploy scripts**
 
 ```ts
-import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.8.5/mod.ts";
+import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.9.6/mod.ts";
 import { Contract } from "./src/offchain.ts";
 
 const lucid = await Lucid.new(new Blockfrost(...), "Preview");
@@ -127,7 +133,7 @@ See [requirements](./src/ghc/README.md).
 deno task build
 ```
 Outputs a `dist` folder.
-Lucid needs to be imported separately and is a peer dependency (version `@0.8.5`).
+Lucid needs to be imported separately and is a peer dependency (version `@0.9.6`).
 
 ## Contract endpoints
 

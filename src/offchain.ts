@@ -23,6 +23,9 @@ import {
 } from "../deps.ts";
 import scripts from "./ghc/scripts.json" assert { type: "json" };
 import metadata from "./data/metadata.json" assert { type: "json" };
+import merkleTreeData from "./data/merkletree_data.json" assert {
+  type: "json",
+};
 import { budConfig } from "./config.ts";
 import { ContractConfig, RoyaltyRecipient } from "./types.ts";
 import * as D from "./contract.types.ts";
@@ -109,23 +112,28 @@ export class Contract {
     // 'Reference' NFTs for them are minted with a different label.
     // They are just some mock NFTs (with label 1 instead of 100) in order to keep the contract as it is.
     // The actual reference NFTs for the twins are manually preminted.
-    this.data = metadata.map((m, id) =>
-      concat(
-        fromHex(toLabel(222) + fromText(`Bud${id}`)),
-        fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
-        fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
-        new TextEncoder().encode(`SpaceBud${id}`),
-        fromHex(
-          lucid.utils.datumToHash(
-            Data.to<D.DatumMetadata>({
-              metadata: Data.castFrom<D.Metadata>(Data.fromJson(m), D.Metadata),
-              version: 1n,
-              extra: Data.from(Data.void()),
-            }, D.DatumMetadata),
-          ),
-        ), // metadata
-      )
-    );
+
+    // For perfomance reason we opt out and use a json file.
+    // this.data = metadata.map((m, id) =>
+    //   concat(
+    //     fromHex(toLabel(222) + fromText(`Bud${id}`)),
+    //     fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
+    //     fromHex(toLabel(isTwin(id) ? 1 : 100) + fromText(`Bud${id}`)),
+    //     new TextEncoder().encode(`SpaceBud${id}`),
+    //     fromHex(
+    //       lucid.utils.datumToHash(
+    //         Data.to<D.DatumMetadata>({
+    //           metadata: Data.castFrom<D.Metadata>(Data.fromJson(m), D.Metadata),
+    //           version: 1n,
+    //           extra: Data.from(Data.void()),
+    //         }, D.DatumMetadata),
+    //       ),
+    //     ), // metadata
+    //   )
+    // );
+
+    // Careful! This one works with the official SpaceBudz policy
+    this.data = merkleTreeData.map((d) => fromHex(d));
 
     this.merkleTree = new MerkleTree(this.data);
 
