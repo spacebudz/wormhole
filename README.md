@@ -16,110 +16,35 @@ Policy Id: **4523c5e21d409b81c95b45b0aea275b8ea1406e6cafea5583b9f8a5f**
 
 ## Installation
 
+### Deno
+```js
+import { Contract } from "https://deno.land/x/wormhole@1.0.1/mod.ts";
+```
+
 ### NPM
 ```
 npm install @spacebudz/wormhole
 ```
 
-## Test
-
-1. **Mock old SpaceBudz:**
-
-Old SpaceBudz follow CIP-0025 and have the following asset name structure: `SpaceBud{id}` (e.g. `SpaceBud123`). But we leave out the metadata since they are not relevant for testing the contract.
+## Get started
 
 ```ts
-import { Lucid, Blockfrost, MintingPolicy } from "https://deno.land/x/lucid@0.9.6/mod.ts";
+import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.9.7/mod.ts";
+import { Contract } from "https://deno.land/x/wormhole@1.0.1/mod.ts";
 
-const lucid = await Lucid.new(new Blockfrost(...), "Preview");
+const lucid = await Lucid.new(new Blockfrost(...));
 
 lucid.selectWalletFromSeed(
   "<seed_phrase>",
 );
 
-const { paymentCredential } = lucid.utils.getAddressDetails(
-  await lucid.wallet.address(),
-);
+const contract = new Contract(lucid);
 
-const mockOldPolicy: MintingPolicy = {
-  type: "Native",
-  script: toHex(
-    C.NativeScript.new_script_pubkey(
-      C.ScriptPubkey.new(C.Ed25519KeyHash.from_hex(paymentCredential?.hash!)),
-    ).to_bytes(),
-  ),
-};
+// Logging the SpaceBudz policy id
+console.log(contract.mintPolicyId);
 
-const mockOldPolicyId = lucid.utils.validatorToScriptHash(mockOldPolicy);
-
-export async function mockMint() {
-  const tx = await lucid.newTx()
-    .mintAssets({
-      [mockOldPolicyId + utf8ToHex(`SpaceBud${0}`)]: 1n,
-      [mockOldPolicyId + utf8ToHex(`SpaceBud${1}`)]: 1n,
-      [mockOldPolicyId + utf8ToHex(`SpaceBud${2}`)]: 1n,
-      [mockOldPolicyId + utf8ToHex(`SpaceBud${3}`)]: 1n,
-    })
-    .attachMintingPolicy(mockOldPolicy)
-    .complete();
-
-  const signedTx = await tx.sign().complete();
-  return signedTx.submit();
-};
-
-console.log(await mockMint());
-```
-
-2. **Init contract and deploy scripts**
-
-```ts
-import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.9.6/mod.ts";
-import { Contract } from "./src/offchain.ts";
-
-const lucid = await Lucid.new(new Blockfrost(...), "Preview");
-
-lucid.selectWalletFromSeed(
-  "<seed_phrase>",
-);
-
-const contract = new Contract(lucid, {
-  extraOutRef: {
-    txHash: "<tx_hash>",
-    outputIndex: 0,
-  },
-  oldPolicyId: "<mock_old_policy_id>",
-})
-
-// Deploy scripts on-chain, which can be reused in all contract interactions to reduce fees.
-console.log(await contract.deployScripts())
-```
-
-This step only needs to be done once.
-`extraOutRef` can be ignored for now and initialized with empty arguments. This parameter is needed to mint a unique Royalty (Label 500) and Intellectual Property (Label 600) token under the same policy id.
-
-3. **Re-init contract and migrate**
-
-Add the tx hash from the `deployScripts` endpoint to the `Contract` config.
-
-```ts
-const contract = new Contract(lucid, {
-  extraOutRef: {
-    txHash: "<tx_hash>",
-    outputIndex: 0,
-  },
-  oldPolicyId: "<mock_old_policy_id>",
-  deployTxHash: "<tx_hash_from_deployScripts>"
-})
-
-// Migrate SpaceBud1 
-console.log(await contract.migrate([1]))
-```
-⚠️ You can migrate multiple SpaceBudz at a time, 6-7 is the limit. More than that exceeds the execution unit costs. Few ways to improve that:
-- Transaction chaining
-- Rewrite the contract in a different contract language like Aiken. PlutusTx is not very efficient.
-
-4. **Burn (just for fun and testing)**
-```ts
-console.log(await contract.burn(1));
+// Migrate SpaceBud #10
+console.log(await contract.migrate([10]));
 ```
 
 ## Compile contract
