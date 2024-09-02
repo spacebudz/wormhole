@@ -18,7 +18,7 @@ Policy Id: **4523c5e21d409b81c95b45b0aea275b8ea1406e6cafea5583b9f8a5f**
 
 ### Deno
 ```js
-import { Contract } from "https://deno.land/x/wormhole@1.0.3/mod.ts";
+import { Contract } from "https://deno.land/x/wormhole@1.0.4/mod.ts";
 ```
 
 ### NPM
@@ -29,8 +29,8 @@ npm install @spacebudz/wormhole
 ## Get started
 
 ```ts
-import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.10.1/mod.ts";
-import { Contract } from "https://deno.land/x/wormhole@1.0.3/mod.ts";
+import { Lucid, Blockfrost } from "https://deno.land/x/lucid@0.10.9/mod.ts";
+import { Contract } from "https://deno.land/x/wormhole@1.0.4/mod.ts";
 
 const lucid = await Lucid.new(new Blockfrost(...));
 
@@ -58,7 +58,7 @@ See [requirements](./src/ghc/README.md).
 deno task build
 ```
 Outputs a `dist` folder.
-Lucid needs to be imported separately and is a peer dependency (version `@0.10.1`).
+Lucid needs to be imported separately and is a peer dependency (version `@0.10.9`).
 
 ## Contract endpoints
 

@@ -12,7 +12,7 @@ import {
 import { Contract } from "../mod.ts";
 import { assert } from "https://deno.land/std@0.145.0/testing/asserts.ts";
 import * as D from "../src/contract.types.ts";
-import metadata from "../src/data/metadata.json" assert { type: "json" };
+import metadata from "../src/data/metadata.json" with { type: "json" };
 
 async function generateAccount(assets: Assets) {
   const seedPhrase = generateSeedPhrase();
@@ -165,7 +165,10 @@ Deno.test("Evil migration failed", async () => {
         return tx;
       })())
       .payToContract(contract.lockAddress, {
-        inline: Data.to<PolicyId>(contract.mintPolicyId, Data.Bytes()),
+        inline: Data.to<PolicyId>(
+          contract.mintPolicyId,
+          Data.Bytes() as unknown as PolicyId,
+        ),
       }, lockAssets)
       .compose(
         refScripts.mint
@@ -228,7 +231,7 @@ Deno.test("Evil move failed", async () => {
     if (!ownershipUtxo) throw new Error("NoOwnershipError");
     if (!refNFTUtxo) throw new Error("NoUTxOError");
 
-    const datum = await lucid.datumOf(refNFTUtxo);
+    const datum = Data.to(await lucid.datumOf(refNFTUtxo));
 
     const tx = await lucid.newTx()
       .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Move", D.RefAction))
@@ -271,7 +274,7 @@ Deno.test("Evil unlocking failed", async () => {
       ),
     );
 
-    const datum = await lucid.datumOf(lockUtxo);
+    const datum = Data.to(await lucid.datumOf(lockUtxo));
 
     const tx = await lucid.newTx()
       .collectFrom([lockUtxo], Data.void())

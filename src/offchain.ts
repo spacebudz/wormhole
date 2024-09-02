@@ -21,9 +21,9 @@ import {
   TxHash,
   UTxO,
 } from "../deps.ts";
-import scripts from "./ghc/scripts.json" assert { type: "json" };
-import metadata from "./data/metadata.json" assert { type: "json" };
-import merkleTreeData from "./data/merkletree_data.json" assert {
+import scripts from "./ghc/scripts.json" with { type: "json" };
+import metadata from "./data/metadata.json" with { type: "json" };
+import merkleTreeData from "./data/merkletree_data.json" with {
   type: "json",
 };
 import { budConfig } from "./config.ts";
@@ -248,8 +248,9 @@ export class Contract {
         ),
     );
 
-    const Ip = Data.Object({ url: Data.Bytes(), hash: Data.Bytes() });
-    type Ip = Data.Static<typeof Ip>;
+    const IpSchema = Data.Object({ url: Data.Bytes(), hash: Data.Bytes() });
+    type Ip = Data.Static<typeof IpSchema>;
+    const Ip = IpSchema as unknown as Ip;
 
     const ipDatum = Data.to<Ip>({ url: fromText(url), hash }, Ip);
 
@@ -392,7 +393,10 @@ export class Contract {
         return tx;
       })())
       .payToContract(this.lockAddress, {
-        inline: Data.to<PolicyId>(this.mintPolicyId, Data.Bytes()),
+        inline: Data.to<PolicyId>(
+          this.mintPolicyId,
+          Data.Bytes() as unknown as PolicyId,
+        ),
       }, lockAssets)
       .compose(
         refScripts.mint
@@ -454,7 +458,7 @@ export class Contract {
     if (!ownershipUtxo) throw new Error("NoOwnershipError");
     if (!refNFTUtxo) throw new Error("NoUTxOError");
 
-    const datum = await this.lucid.datumOf(refNFTUtxo);
+    const datum = Data.to(await this.lucid.datumOf(refNFTUtxo));
 
     const tx = await this.lucid.newTx()
       .collectFrom([refNFTUtxo], Data.to<D.RefAction>("Move", D.RefAction))
