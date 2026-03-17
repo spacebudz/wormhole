@@ -10,6 +10,28 @@ The SpaceBudz wormhole contract. Moving from CIP-0025 to CIP-0068.
 
 Policy Id: **4523c5e21d409b81c95b45b0aea275b8ea1406e6cafea5583b9f8a5f**
 
+## Disclaimer
+
+This contract is immutable and autonomous.  
+It has no admin keys and cannot be upgraded.  
+No one controls its execution after deployment.  
+Use is entirely voluntary and at your own risk.  
+No guarantees are made regarding its functionality, security, or future behavior.
+
+Born in the early days of 2021, this project began as a foundational experiment to push the boundaries of what was possible on Cardano. In 2023, a migration using the Wormhole contract was undertaken. It was a strategic move that accompanied an art overhaul. The need for this transition arose when it was discovered that some graphic elements in the initial SpaceBudz collection were not entirely original, prompting a decision to ensure all artwork was authentic.
+
+This software is provided "as-is" under the original [MIT License](./LICENSE).
+
+## Limitations
+
+SpaceBudz NFTs are designed as digital collectibles. They should not be relied upon for authentication, identity, or security-critical logic in smart contracts.
+
+In particular, smart contracts should not depend on SpaceBudz metadata for authorization or validation purposes.
+
+Additionally, CIP-0068 is a living standard and its metadata schema may evolve over time. Future revisions or extensions to the standard may introduce changes that are not compatible with assumptions made by external contracts.
+
+SpaceBudz should therefore be treated purely as collectible assets rather than protocol-level primitives.
+
 ## Requirements
 
 - Deno >= 1.28.1
